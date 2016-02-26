@@ -29,6 +29,7 @@
 
 #include <iostream>
 
+
 int main(int argc, const char** argv) {
     tell::commitmanager::ServerConfig serverConfig;
     bool help = false;

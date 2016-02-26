@@ -21,9 +21,12 @@
  *     Lucas Braun <braunl@inf.ethz.ch>
  */
 #include "ServerSocket.hpp"
+#include "DirectoryEntry.h"
 
 #include <commitmanager/ErrorCode.hpp>
 #include <commitmanager/MessageTypes.hpp>
+
+#include <boost/algorithm/string/join.hpp>
 
 #include <crossbow/enum_underlying.hpp>
 #include <crossbow/logger.hpp>
@@ -77,6 +80,10 @@ void ServerManager::onMessage(ServerSocket* con, crossbow::infinio::MessageId me
         handleCommitTransaction(con, messageId, message);
     } break;
 
+    case crossbow::to_underlying(RequestType::GET_NODES): {
+        handleGetNodes(con, messageId, message);
+    } break;
+
     default: {
         con->writeErrorResponse(messageId, error::unkown_request);
     } break;
@@ -117,6 +124,32 @@ void ServerManager::handleCommitTransaction(ServerSocket* con, crossbow::infinio
         message.write<uint8_t>(succeeded ? 0x1u : 0x0u);
     });
 }
+
+    // Filters the node directory by the requested tag and returns address info back to the client.
+    void ServerManager::handleGetNodes(ServerSocket* con, crossbow::infinio::MessageId messageId,
+        crossbow::buffer_reader& message) {
+
+        // TODO: Read the requested tag
+        crossbow::string requestedTag = "STORAGE";
+
+        // Filter
+        auto tagFilter = [requestedTag](struct DirectoryEntry& entry) { return entry.tag == requestedTag; };
+        std::vector<struct DirectoryEntry> matchingEntries;
+        std::copy_if(mDirectory.begin(), mDirectory.end(), std::back_inserter(matchingEntries), tagFilter);
+
+        // Construct address info
+        auto getHost = [](struct DirectoryEntry& entry) { return entry.host; };
+        std::vector<crossbow::string> matchingHosts;
+        std::transform(matchingEntries.begin(), matchingEntries.end(), std::back_inserter(matchingHosts), getHost);
+        crossbow::string nodeInfo = boost::algorithm::join(matchingHosts, ";");
+
+        // Write response
+        auto messageLength = nodeInfo.length();
+        auto responseWriter = [nodeInfo](crossbow::buffer_writer& message, std::error_code& /* ec */) {
+            message.write(nodeInfo);
+        };
+        con->writeResponse(messageId, ResponseType::DIRECTORY_ENTRIES, messageLength, responseWriter);
+    }
 
 } // namespace commitmanager
 } // namespace tell

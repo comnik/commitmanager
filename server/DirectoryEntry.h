@@ -20,40 +20,23 @@
  *     Kevin Bocksrocker <kevin.bocksrocker@gmail.com>
  *     Lucas Braun <braunl@inf.ethz.ch>
  */
-
 #pragma once
 
+#include <cstddef>
 #include <cstdint>
-
 #include <crossbow/string.hpp>
 
 namespace tell {
-namespace commitmanager {
+    namespace commitmanager {
 
-/**
- * @brief Unique string sent as first argument in the connection handshake
- */
-const crossbow::string& handshakeString();
+        /**
+        * @brief The DirectoryEntry struct containing meta-data about nodes in the tell cluster.
+        */
+        struct DirectoryEntry {
+            crossbow::string host;
+            crossbow::string tag;
+            uint16_t port;
+        };
 
-/**
- * @brief The possible messages types of a request
- */
-enum class RequestType : uint32_t {
-    START = 0x1u,
-    COMMIT,
-    GET_NODES,
-    REGISTER,
-    UNREGISTER
-};
-
-/**
- * @brief The possible messages types of a response
- */
-enum class ResponseType : uint32_t {
-    START = 0x1u,
-    COMMIT,
-    DIRECTORY_ENTRIES
-};
-
-} // namespace commitmanager
+    } // namespace commitmanager
 } // namespace tell
