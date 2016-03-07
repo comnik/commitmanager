@@ -36,6 +36,10 @@ void CommitResponse::processResponse(crossbow::buffer_reader& message) {
     setResult(message.read<uint8_t>() != 0x0u);
 }
 
+    void DirectoryEntriesResponse::processResponse(crossbow::buffer_reader &message) {
+        setResult(message.read());
+    }
+
 void ClientSocket::connect(const crossbow::infinio::Endpoint& host) {
     LOG_INFO("Connecting to CommitManager server %1%", host);
 
@@ -71,6 +75,18 @@ std::shared_ptr<CommitResponse> ClientSocket::commitTransaction(crossbow::infini
 
     return response;
 }
+
+    std::shared_ptr<DirectoryEntriesResponse> ClientSocket::readDirectory(crossbow::infinio::Fiber &fiber,
+                                                                          crossbow::string tag) {
+        auto response = std::make_shared<DirectoryEntriesResponse>(fiber);
+
+        uint64_t messageLength = tag.length();
+        auto requestWriter = [tag] (crossbow::buffer_writer& message, std::error_code& /* ec */) {
+            message.write(tag);
+        };
+
+        sendRequest(response, RequestType::READ_DIRECTORY, messageLength, requestWriter);
+    }
 
 } // namespace commitmanager
 } // namespace tell

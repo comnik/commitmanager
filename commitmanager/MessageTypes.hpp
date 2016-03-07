@@ -41,7 +41,7 @@ const crossbow::string& handshakeString();
 enum class RequestType : uint32_t {
     START = 0x1u,
     COMMIT,
-    GET_NODES,
+    READ_DIRECTORY,
     REGISTER,
     UNREGISTER
 };

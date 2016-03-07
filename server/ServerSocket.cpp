@@ -80,7 +80,7 @@ void ServerManager::onMessage(ServerSocket* con, crossbow::infinio::MessageId me
         handleCommitTransaction(con, messageId, message);
     } break;
 
-    case crossbow::to_underlying(RequestType::GET_NODES): {
+    case crossbow::to_underlying(RequestType::READ_DIRECTORY): {
         handleGetNodes(con, messageId, message);
     } break;
 
@@ -144,7 +144,7 @@ void ServerManager::handleCommitTransaction(ServerSocket* con, crossbow::infinio
         crossbow::string nodeInfo = boost::algorithm::join(matchingHosts, ";");
 
         // Write response
-        auto messageLength = nodeInfo.length();
+        uint64_t messageLength = nodeInfo.length();
         auto responseWriter = [nodeInfo](crossbow::buffer_writer& message, std::error_code& /* ec */) {
             message.write(nodeInfo);
         };

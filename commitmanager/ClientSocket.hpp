@@ -78,6 +78,27 @@ private:
     void processResponse(crossbow::buffer_reader& message);
 };
 
+    /**
+    * @brief Response for a Get-Nodes request
+    */
+    class DirectoryEntriesResponse final : public crossbow::infinio::RpcResponseResult<CommitResponse, crossbow::string> {
+        using Base = crossbow::infinio::RpcResponseResult<CommitResponse, crossbow::string>;
+
+    public:
+        using Base::Base;
+
+    private:
+        friend Base;
+
+        static constexpr ResponseType MessageType = ResponseType::DIRECTORY_ENTRIES;
+
+        static const std::error_category& errorCategory() {
+            return error::get_error_category();
+        }
+
+        void processResponse(crossbow::buffer_reader& message);
+    };
+
 /**
  * @brief Handles communication with one CommitManager server
  *
@@ -96,6 +117,8 @@ public:
     std::shared_ptr<StartResponse> startTransaction(crossbow::infinio::Fiber& fiber, bool readonly);
 
     std::shared_ptr<CommitResponse> commitTransaction(crossbow::infinio::Fiber& fiber, uint64_t version);
+
+    std::shared_ptr<DirectoryEntriesResponse> readDirectory(crossbow::infinio::Fiber& fiber, crossbow::string tag);
 };
 
 } // namespace commitmanager
