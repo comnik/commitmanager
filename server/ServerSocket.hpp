@@ -25,6 +25,7 @@
 #include "ServerConfig.hpp"
 
 #include <commitmanager/CommitManager.hpp>
+#include <server/DirectoryEntry.hpp>
 
 #include <crossbow/byte_buffer.hpp>
 #include <crossbow/infinio/InfinibandService.hpp>

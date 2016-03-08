@@ -8,7 +8,7 @@ set(SERVER_SRCS
 set(SERVER_PRIVATE_HDR
     ServerConfig.hpp
     ServerSocket.hpp
-        DirectoryEntry.h)
+        DirectoryEntry.hpp)
 
 # Add CommitManager server executable
 add_executable(commitmanagerd main.cpp ${SERVER_SRCS} ${SERVER_PRIVATE_HDR})

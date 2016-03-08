@@ -21,7 +21,7 @@
  *     Lucas Braun <braunl@inf.ethz.ch>
  */
 #include "ServerSocket.hpp"
-#include "DirectoryEntry.h"
+#include "DirectoryEntry.hpp"
 
 #include <commitmanager/ErrorCode.hpp>
 #include <commitmanager/MessageTypes.hpp>

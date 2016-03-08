@@ -37,7 +37,7 @@ void CommitResponse::processResponse(crossbow::buffer_reader& message) {
 }
 
     void DirectoryEntriesResponse::processResponse(crossbow::buffer_reader &message) {
-        setResult(message.read());
+        setResult(message.read<crossbow::string>());
     }
 
 void ClientSocket::connect(const crossbow::infinio::Endpoint& host) {
@@ -86,6 +86,8 @@ std::shared_ptr<CommitResponse> ClientSocket::commitTransaction(crossbow::infini
         };
 
         sendRequest(response, RequestType::READ_DIRECTORY, messageLength, requestWriter);
+
+        return response;
     }
 
 } // namespace commitmanager
