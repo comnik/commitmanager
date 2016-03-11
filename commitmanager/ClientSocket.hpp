@@ -66,14 +66,14 @@ class CommitResponse final : public crossbow::infinio::RpcResponseResult<CommitR
 public:
     using Base::Base;
 
-private:
-    friend Base;
-
     static constexpr ResponseType MessageType = ResponseType::COMMIT;
 
     static const std::error_category& errorCategory() {
         return error::get_error_category();
     }
+
+private:
+    friend Base;
 
     void processResponse(crossbow::buffer_reader& message);
 };
@@ -81,8 +81,8 @@ private:
     /**
     * @brief Response for a Get-Nodes request
     */
-    class DirectoryEntriesResponse final : public crossbow::infinio::RpcResponseResult<CommitResponse, crossbow::string> {
-        using Base = crossbow::infinio::RpcResponseResult<CommitResponse, crossbow::string>;
+    class DirectoryEntriesResponse final : public crossbow::infinio::RpcResponseResult<DirectoryEntriesResponse, crossbow::string> {
+        using Base = crossbow::infinio::RpcResponseResult<DirectoryEntriesResponse, crossbow::string>;
 
     public:
         using Base::Base;
@@ -119,6 +119,8 @@ public:
     std::shared_ptr<CommitResponse> commitTransaction(crossbow::infinio::Fiber& fiber, uint64_t version);
 
     std::shared_ptr<DirectoryEntriesResponse> readDirectory(crossbow::infinio::Fiber& fiber, crossbow::string tag);
+    std::shared_ptr<DirectoryEntriesResponse> registerNode(crossbow::infinio::Fiber& fiber, crossbow::string tag);
+    std::shared_ptr<DirectoryEntriesResponse> unregisterNode(crossbow::infinio::Fiber& fiber);
 };
 
 } // namespace commitmanager

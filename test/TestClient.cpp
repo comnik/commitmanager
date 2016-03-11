@@ -66,8 +66,12 @@ int main(int argc, const char** argv) {
     client.connect(crossbow::infinio::Endpoint(crossbow::infinio::Endpoint::ipv4(), commitManagerHost));
 
     processor->executeFiber([&client] (crossbow::infinio::Fiber& fiber) {
-        LOG_INFO("Reading cluster info");
         crossbow::string tag = "STORAGE";
+
+        LOG_INFO("Registering with the node directory");
+        auto registerResponse = client.registerNode(fiber, tag);
+
+        LOG_INFO("Reading cluster info");
         auto directoryResponse = client.readDirectory(fiber, tag);
         if (!directoryResponse->waitForResult()) {
             auto& ec = directoryResponse->error();
@@ -75,6 +79,19 @@ int main(int argc, const char** argv) {
             return;
         }
         auto storageNodes = directoryResponse->get();
+        LOG_INFO("Received storage node info: %1", &storageNodes);
+
+        LOG_INFO("Unregistering with the node directory");
+        auto unregisterResponse = client.unregisterNode(fiber);
+
+        LOG_INFO("Re-reading cluster info");
+        directoryResponse = client.readDirectory(fiber, tag);
+        if (!directoryResponse->waitForResult()) {
+            auto& ec = directoryResponse->error();
+            LOG_INFO("Error while reading cluster information [error = %1% %2%]", ec, ec.message());
+            return;
+        }
+        storageNodes = directoryResponse->get();
         LOG_INFO("Received storage node info: %1", &storageNodes);
 
         LOG_INFO("Starting transaction");

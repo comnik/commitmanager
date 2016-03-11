@@ -80,8 +80,12 @@ void ServerManager::onMessage(ServerSocket* con, crossbow::infinio::MessageId me
         handleCommitTransaction(con, messageId, message);
     } break;
 
-    case crossbow::to_underlying(RequestType::READ_DIRECTORY): {
-        handleGetNodes(con, messageId, message);
+    case crossbow::to_underlying(RequestType::READ_CLUSTER): {
+        handleGetClusterState(con, messageId, message);
+    } break;
+
+    case crossbow::to_underlying(RequestType::UPDATE_CLUSTER): {
+        handleUpdateClusterState(con, messageId, message);
     } break;
 
     default: {
@@ -125,9 +129,40 @@ void ServerManager::handleCommitTransaction(ServerSocket* con, crossbow::infinio
     });
 }
 
-    // Filters the node directory by the requested tag and returns address info back to the client.
-    void ServerManager::handleGetNodes(ServerSocket* con, crossbow::infinio::MessageId messageId,
-        crossbow::buffer_reader& message) {
+    /**
+     * @brief Updates the node directory with new status information from a node.
+     */
+    void ServerManager::handleUpdateClusterState(ServerSocket *con, crossbow::infinio::MessageId messageId,
+                                                 crossbow::buffer_reader &message) {
+        // TODO: Read the actual message
+        crossbow::string msgType = "REGISTER";
+        crossbow::string msgHost = "localhost";
+        uint16_t msgPort = 8000;
+        crossbow::string msgTag = "STORAGE";
+
+        // Update cluster state
+        if (msgType == "REGISTER") {
+            DirectoryEntry node;
+            node.host = msgHost;
+            node.port = msgPort;
+            node.tag = msgTag;
+
+            mDirectory.push_back(node);
+        } else {
+            // TODO handle unregister
+        }
+
+        // Write response
+        uint64_t messageLength = 0;
+        auto responseWriter = [](crossbow::buffer_writer& message, std::error_code& /* ec */) { };
+        con->writeResponse(messageId, ResponseType::DIRECTORY_ENTRIES, messageLength, responseWriter);
+    }
+
+    /**
+     * @brief Filters the node directory by the requested tag and returns address info back to the client.
+     */
+    void ServerManager::handleGetClusterState(ServerSocket *con, crossbow::infinio::MessageId messageId,
+                                              crossbow::buffer_reader &message) {
 
         // TODO: Read the requested tag
         crossbow::string requestedTag = "STORAGE";
