@@ -70,6 +70,7 @@ int main(int argc, const char** argv) {
 
         LOG_INFO("Registering with the node directory");
         auto registerResponse = client.registerNode(fiber, tag);
+        registerResponse->waitForResult();
 
         LOG_INFO("Reading cluster info");
         auto directoryResponse = client.readDirectory(fiber, tag);
@@ -78,11 +79,14 @@ int main(int argc, const char** argv) {
             LOG_INFO("Error while reading cluster information [error = %1% %2%]", ec, ec.message());
             return;
         }
+        
         auto storageNodes = directoryResponse->get();
+        storageNodes->waitForResult();
         LOG_INFO("Received storage node info: %1", &storageNodes);
 
         LOG_INFO("Unregistering with the node directory");
         auto unregisterResponse = client.unregisterNode(fiber);
+        unregisterResponse->waitForResult();
 
         LOG_INFO("Re-reading cluster info");
         directoryResponse = client.readDirectory(fiber, tag);
@@ -91,6 +95,7 @@ int main(int argc, const char** argv) {
             LOG_INFO("Error while reading cluster information [error = %1% %2%]", ec, ec.message());
             return;
         }
+        
         storageNodes = directoryResponse->get();
         LOG_INFO("Received storage node info: %1", &storageNodes);
 

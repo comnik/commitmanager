@@ -155,7 +155,7 @@ void ServerManager::handleCommitTransaction(ServerSocket* con, crossbow::infinio
         // Write response
         uint64_t messageLength = 0;
         auto responseWriter = [](crossbow::buffer_writer& message, std::error_code& /* ec */) { };
-        con->writeResponse(messageId, ResponseType::DIRECTORY_ENTRIES, messageLength, responseWriter);
+        con->writeResponse(messageId, ResponseType::CLUSTER_STATE, messageLength, responseWriter);
     }
 
     /**
@@ -183,7 +183,7 @@ void ServerManager::handleCommitTransaction(ServerSocket* con, crossbow::infinio
         auto responseWriter = [nodeInfo](crossbow::buffer_writer& message, std::error_code& /* ec */) {
             message.write(nodeInfo);
         };
-        con->writeResponse(messageId, ResponseType::DIRECTORY_ENTRIES, messageLength, responseWriter);
+        con->writeResponse(messageId, ResponseType::CLUSTER_STATE, messageLength, responseWriter);
     }
 
 } // namespace commitmanager

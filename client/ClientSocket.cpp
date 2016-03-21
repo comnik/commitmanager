@@ -36,7 +36,7 @@ void CommitResponse::processResponse(crossbow::buffer_reader& message) {
     setResult(message.read<uint8_t>() != 0x0u);
 }
 
-    void DirectoryEntriesResponse::processResponse(crossbow::buffer_reader &message) {
+    void ClusterStateResponse::processResponse(crossbow::buffer_reader &message) {
         setResult(message.read<crossbow::string>());
     }
 
@@ -76,9 +76,9 @@ std::shared_ptr<CommitResponse> ClientSocket::commitTransaction(crossbow::infini
     return response;
 }
 
-    std::shared_ptr<DirectoryEntriesResponse> ClientSocket::readDirectory(crossbow::infinio::Fiber &fiber,
+    std::shared_ptr<ClusterStateResponse> ClientSocket::readDirectory(crossbow::infinio::Fiber &fiber,
                                                                           crossbow::string tag) {
-        auto response = std::make_shared<DirectoryEntriesResponse>(fiber);
+        auto response = std::make_shared<ClusterStateResponse>(fiber);
 
         uint64_t messageLength = tag.length();
         auto requestWriter = [tag] (crossbow::buffer_writer& message, std::error_code& /* ec */) {
@@ -90,9 +90,9 @@ std::shared_ptr<CommitResponse> ClientSocket::commitTransaction(crossbow::infini
         return response;
     }
 
-    std::shared_ptr<DirectoryEntriesResponse> ClientSocket::registerNode(crossbow::infinio::Fiber &fiber,
+    std::shared_ptr<ClusterStateResponse> ClientSocket::registerNode(crossbow::infinio::Fiber &fiber,
                                                                          crossbow::string tag) {
-        auto response = std::make_shared<DirectoryEntriesResponse>(fiber);
+        auto response = std::make_shared<ClusterStateResponse>(fiber);
 
         uint64_t messageLength = tag.length();
         auto requestWriter = [tag] (crossbow::buffer_writer& message, std::error_code& /* ec */) {
@@ -104,8 +104,8 @@ std::shared_ptr<CommitResponse> ClientSocket::commitTransaction(crossbow::infini
         return response;
     }
 
-    std::shared_ptr<DirectoryEntriesResponse> ClientSocket::unregisterNode(crossbow::infinio::Fiber &fiber) {
-        auto response = std::make_shared<DirectoryEntriesResponse>(fiber);
+    std::shared_ptr<ClusterStateResponse> ClientSocket::unregisterNode(crossbow::infinio::Fiber &fiber) {
+        auto response = std::make_shared<ClusterStateResponse>(fiber);
 
         uint64_t messageLength = 0;
         auto requestWriter = [] (crossbow::buffer_writer& message, std::error_code& /* ec */) {

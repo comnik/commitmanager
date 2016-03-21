@@ -29,11 +29,45 @@
 #include <crossbow/infinio/RpcClient.hpp>
 #include <crossbow/string.hpp>
 
+#include <boost/variant.hpp>
+
 #include <cstdint>
 #include <system_error>
 
 namespace tell {
 namespace commitmanager {
+
+/**
+ * @brief Generic response, which encapsulates a retry mechanism if cluster configuration changes.
+ */
+template <class ResultType, class RequestType>
+class Response final : public crossbow::infinio::RpcResponseResult<Response, ResultType> {
+    using Base = crossbow::infinio::RpcResponseResult<Response, ResultType>;
+
+public:
+    using Base::Base;
+
+    Response(Fiber& fiber) : Base(fiber) {}
+
+    ResultType get () {
+        return boost::apply_visitor(future_visitor(), future);
+    }
+
+private:
+    class future_visitor : public boost::static_visitor<int> {
+    public:
+        ResultType operator () (ResultType result) {
+            return result;
+        }
+
+        ResultType operator () (RequestType req) {
+            // we don't have a result yet
+            req->waitForResult();
+        }
+    };
+
+    boost::variant<ResultType, RequestType> future;
+};
 
 /**
  * @brief Response for a Start-Transaction request
@@ -56,6 +90,9 @@ private:
 
     void processResponse(crossbow::buffer_reader& message);
 };
+
+// TODO
+// using StartResponse = Response<StartResponse_t, std::unique_ptr<SnapshotDescriptor>>;
 
 /**
  * @brief Response for a Commit-Transaction request
@@ -81,8 +118,8 @@ private:
     /**
     * @brief Response for a Get-Nodes request
     */
-    class DirectoryEntriesResponse final : public crossbow::infinio::RpcResponseResult<DirectoryEntriesResponse, crossbow::string> {
-        using Base = crossbow::infinio::RpcResponseResult<DirectoryEntriesResponse, crossbow::string>;
+    class ClusterStateResponse final : public crossbow::infinio::RpcResponseResult<ClusterStateResponse, crossbow::string> {
+        using Base = crossbow::infinio::RpcResponseResult<ClusterStateResponse, crossbow::string>;
 
     public:
         using Base::Base;
@@ -90,7 +127,7 @@ private:
     private:
         friend Base;
 
-        static constexpr ResponseType MessageType = ResponseType::DIRECTORY_ENTRIES;
+        static constexpr ResponseType MessageType = ResponseType::CLUSTER_STATE;
 
         static const std::error_category& errorCategory() {
             return error::get_error_category();
@@ -118,9 +155,9 @@ public:
 
     std::shared_ptr<CommitResponse> commitTransaction(crossbow::infinio::Fiber& fiber, uint64_t version);
 
-    std::shared_ptr<DirectoryEntriesResponse> readDirectory(crossbow::infinio::Fiber& fiber, crossbow::string tag);
-    std::shared_ptr<DirectoryEntriesResponse> registerNode(crossbow::infinio::Fiber& fiber, crossbow::string tag);
-    std::shared_ptr<DirectoryEntriesResponse> unregisterNode(crossbow::infinio::Fiber& fiber);
+    std::shared_ptr<ClusterStateResponse> readDirectory(crossbow::infinio::Fiber& fiber, crossbow::string tag);
+    std::shared_ptr<ClusterStateResponse> registerNode(crossbow::infinio::Fiber& fiber, crossbow::string tag);
+    std::shared_ptr<ClusterStateResponse> unregisterNode(crossbow::infinio::Fiber& fiber);
 };
 
 } // namespace commitmanager

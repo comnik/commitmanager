@@ -51,7 +51,7 @@ enum class RequestType : uint32_t {
 enum class ResponseType : uint32_t {
     START = 0x1u,
     COMMIT,
-    DIRECTORY_ENTRIES
+    CLUSTER_STATE
 };
 
 } // namespace commitmanager
