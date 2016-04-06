@@ -29,45 +29,11 @@
 #include <crossbow/infinio/RpcClient.hpp>
 #include <crossbow/string.hpp>
 
-#include <boost/variant.hpp>
-
 #include <cstdint>
 #include <system_error>
 
 namespace tell {
 namespace commitmanager {
-
-/**
- * @brief Generic response, which encapsulates a retry mechanism if cluster configuration changes.
- */
-template <class ResultType, class RequestType>
-class Response final : public crossbow::infinio::RpcResponseResult<Response, ResultType> {
-    using Base = crossbow::infinio::RpcResponseResult<Response, ResultType>;
-
-public:
-    using Base::Base;
-
-    Response(Fiber& fiber) : Base(fiber) {}
-
-    ResultType get () {
-        return boost::apply_visitor(future_visitor(), future);
-    }
-
-private:
-    class future_visitor : public boost::static_visitor<int> {
-    public:
-        ResultType operator () (ResultType result) {
-            return result;
-        }
-
-        ResultType operator () (RequestType req) {
-            // we don't have a result yet
-            req->waitForResult();
-        }
-    };
-
-    boost::variant<ResultType, RequestType> future;
-};
 
 /**
  * @brief Response for a Start-Transaction request
@@ -91,9 +57,6 @@ private:
     void processResponse(crossbow::buffer_reader& message);
 };
 
-// TODO
-// using StartResponse = Response<StartResponse_t, std::unique_ptr<SnapshotDescriptor>>;
-
 /**
  * @brief Response for a Commit-Transaction request
  */
@@ -115,26 +78,26 @@ private:
     void processResponse(crossbow::buffer_reader& message);
 };
 
-    /**
-    * @brief Response for a Get-Nodes request
-    */
-    class ClusterStateResponse final : public crossbow::infinio::RpcResponseResult<ClusterStateResponse, crossbow::string> {
-        using Base = crossbow::infinio::RpcResponseResult<ClusterStateResponse, crossbow::string>;
+/**
+* @brief Response for a Get-Nodes request
+*/
+class ClusterStateResponse final : public crossbow::infinio::RpcResponseResult<ClusterStateResponse, crossbow::string> {
+    using Base = crossbow::infinio::RpcResponseResult<ClusterStateResponse, crossbow::string>;
 
-    public:
-        using Base::Base;
+public:
+    using Base::Base;
 
-    private:
-        friend Base;
+private:
+    friend Base;
 
-        static constexpr ResponseType MessageType = ResponseType::CLUSTER_STATE;
+    static constexpr ResponseType MessageType = ResponseType::CLUSTER_STATE;
 
-        static const std::error_category& errorCategory() {
-            return error::get_error_category();
-        }
+    static const std::error_category& errorCategory() {
+        return error::get_error_category();
+    }
 
-        void processResponse(crossbow::buffer_reader& message);
-    };
+    void processResponse(crossbow::buffer_reader& message);
+};
 
 /**
  * @brief Handles communication with one CommitManager server
