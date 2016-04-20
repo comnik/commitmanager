@@ -38,7 +38,7 @@ const crossbow::string& handshakeString();
 /**
  * @brief The possible messages types of a request
  */
-enum class RequestType : uint32_t {
+enum class WrappedResponse : uint32_t {
     START = 0x1u,
     COMMIT,
     READ_CLUSTER,

@@ -37,7 +37,9 @@ void CommitResponse::processResponse(crossbow::buffer_reader& message) {
 }
 
     void ClusterStateResponse::processResponse(crossbow::buffer_reader &message) {
-        setResult(message.read<crossbow::string>());
+        // setResult(message.read<crossbow::string>());
+        const crossbow::string fakeResp = "This is some fake cluster data.";
+        setResult(fakeResp);
     }
 
 void ClientSocket::connect(const crossbow::infinio::Endpoint& host) {
@@ -56,8 +58,8 @@ std::shared_ptr<StartResponse> ClientSocket::startTransaction(crossbow::infinio:
     auto response = std::make_shared<StartResponse>(fiber);
 
     uint32_t messageLength = sizeof(uint8_t);
-    sendRequest(response, RequestType::START, messageLength, [readonly] (crossbow::buffer_writer& message,
-            std::error_code& /* ec */) {
+    sendRequest(response, WrappedResponse::START, messageLength, [readonly] (crossbow::buffer_writer& message,
+                                                                             std::error_code& /* ec */) {
         message.write<uint8_t>(readonly ? 0x1u : 0x0u);
     });
 
@@ -68,8 +70,8 @@ std::shared_ptr<CommitResponse> ClientSocket::commitTransaction(crossbow::infini
     auto response = std::make_shared<CommitResponse>(fiber);
 
     uint32_t messageLength = sizeof(uint64_t);
-    sendRequest(response, RequestType::COMMIT, messageLength, [version] (crossbow::buffer_writer& message,
-            std::error_code& /* ec */) {
+    sendRequest(response, WrappedResponse::COMMIT, messageLength, [version] (crossbow::buffer_writer& message,
+                                                                             std::error_code& /* ec */) {
         message.write<uint64_t>(version);
     });
 
@@ -85,7 +87,7 @@ std::shared_ptr<CommitResponse> ClientSocket::commitTransaction(crossbow::infini
             message.write(tag);
         };
 
-        sendRequest(response, RequestType::READ_CLUSTER, messageLength, requestWriter);
+        sendRequest(response, WrappedResponse::READ_CLUSTER, messageLength, requestWriter);
 
         return response;
     }
@@ -94,12 +96,13 @@ std::shared_ptr<CommitResponse> ClientSocket::commitTransaction(crossbow::infini
                                                                          crossbow::string tag) {
         auto response = std::make_shared<ClusterStateResponse>(fiber);
 
-        uint64_t messageLength = tag.length();
+        uint32_t messageLength = sizeof(uint32_t);
         auto requestWriter = [tag] (crossbow::buffer_writer& message, std::error_code& /* ec */) {
-            message.write(tag);
+            // message.write(tag);
+            message.write(1234);
         };
 
-        sendRequest(response, RequestType::READ_CLUSTER, messageLength, requestWriter);
+        sendRequest(response, WrappedResponse::UPDATE_CLUSTER, messageLength, requestWriter);
 
         return response;
     }
@@ -112,7 +115,7 @@ std::shared_ptr<CommitResponse> ClientSocket::commitTransaction(crossbow::infini
             // TODO
         };
 
-        sendRequest(response, RequestType::READ_CLUSTER, messageLength, requestWriter);
+        sendRequest(response, WrappedResponse::READ_CLUSTER, messageLength, requestWriter);
 
         return response;
     }

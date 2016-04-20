@@ -72,19 +72,19 @@ void ServerManager::onMessage(ServerSocket* con, crossbow::infinio::MessageId me
 
     switch (messageType) {
 
-    case crossbow::to_underlying(RequestType::START): {
+    case crossbow::to_underlying(WrappedResponse::START): {
         handleStartTransaction(con, messageId, message);
     } break;
 
-    case crossbow::to_underlying(RequestType::COMMIT): {
+    case crossbow::to_underlying(WrappedResponse::COMMIT): {
         handleCommitTransaction(con, messageId, message);
     } break;
 
-    case crossbow::to_underlying(RequestType::READ_CLUSTER): {
+    case crossbow::to_underlying(WrappedResponse::READ_CLUSTER): {
         handleGetClusterState(con, messageId, message);
     } break;
 
-    case crossbow::to_underlying(RequestType::UPDATE_CLUSTER): {
+    case crossbow::to_underlying(WrappedResponse::UPDATE_CLUSTER): {
         handleUpdateClusterState(con, messageId, message);
     } break;
 
@@ -152,10 +152,14 @@ void ServerManager::handleCommitTransaction(ServerSocket* con, crossbow::infinio
             // TODO handle unregister
         }
 
+        LOG_INFO("UPDATED CLUSTER STATE. RESPONDING.");
+
         // Write response
-        uint64_t messageLength = 0;
-        auto responseWriter = [](crossbow::buffer_writer& message, std::error_code& /* ec */) { };
-        con->writeResponse(messageId, ResponseType::CLUSTER_STATE, messageLength, responseWriter);
+        uint32_t messageLength = sizeof(uint32_t);
+        con->writeResponse(messageId, ResponseType::CLUSTER_STATE, messageLength, []
+                (crossbow::buffer_writer& msg, std::error_code& /* ec */) {
+            msg.write(4567);
+        });
     }
 
     /**
@@ -177,6 +181,8 @@ void ServerManager::handleCommitTransaction(ServerSocket* con, crossbow::infinio
         std::vector<crossbow::string> matchingHosts;
         std::transform(matchingEntries.begin(), matchingEntries.end(), std::back_inserter(matchingHosts), getHost);
         crossbow::string nodeInfo = boost::algorithm::join(matchingHosts, ";");
+
+        LOG_INFO("GOT CLUSTER STATE. RESPONDING.");
 
         // Write response
         uint64_t messageLength = nodeInfo.length();
