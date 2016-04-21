@@ -36,11 +36,10 @@ void CommitResponse::processResponse(crossbow::buffer_reader& message) {
     setResult(message.read<uint8_t>() != 0x0u);
 }
 
-    void ClusterStateResponse::processResponse(crossbow::buffer_reader &message) {
-        // setResult(message.read<crossbow::string>());
-        const crossbow::string fakeResp = "This is some fake cluster data.";
-        setResult(fakeResp);
-    }
+void ClusterStateResponse::processResponse(crossbow::buffer_reader &message) {
+    uint64_t msgSize = message.read<uint64_t>();
+    setResult(message.read(msgSize));
+}
 
 void ClientSocket::connect(const crossbow::infinio::Endpoint& host) {
     LOG_INFO("Connecting to CommitManager server %1%", host);
@@ -93,13 +92,19 @@ std::shared_ptr<CommitResponse> ClientSocket::commitTransaction(crossbow::infini
     }
 
     std::shared_ptr<ClusterStateResponse> ClientSocket::registerNode(crossbow::infinio::Fiber &fiber,
+                                                                         crossbow::string host,
                                                                          crossbow::string tag) {
         auto response = std::make_shared<ClusterStateResponse>(fiber);
 
-        uint32_t messageLength = sizeof(uint32_t);
-        auto requestWriter = [tag] (crossbow::buffer_writer& message, std::error_code& /* ec */) {
-            // message.write(tag);
-            message.write(1234);
+        uint32_t messageLength = 2*sizeof(uint64_t) + (host.size()+1) + (tag.size()+1);
+
+        LOG_INFO("Request size: %1%", messageLength);
+
+        auto requestWriter = [host, tag] (crossbow::buffer_writer& message, std::error_code& /* ec */) {
+            message.write(host.size());
+            message.write(&host, host.size()+1);
+            message.write(tag.size());
+            message.write(&tag, tag.size()+1);
         };
 
         sendRequest(response, WrappedResponse::UPDATE_CLUSTER, messageLength, requestWriter);

@@ -134,32 +134,29 @@ void ServerManager::handleCommitTransaction(ServerSocket* con, crossbow::infinio
      */
     void ServerManager::handleUpdateClusterState(ServerSocket *con, crossbow::infinio::MessageId messageId,
                                                  crossbow::buffer_reader &message) {
-        // TODO: Read the actual message
-        crossbow::string msgType = "REGISTER";
-        crossbow::string msgHost = "localhost";
-        uint16_t msgPort = 8000;
-        crossbow::string msgTag = "STORAGE";
 
         // Update cluster state
-        if (msgType == "REGISTER") {
-            DirectoryEntry node;
-            node.host = msgHost;
-            node.port = msgPort;
-            node.tag = msgTag;
+        DirectoryEntry node;
+        uint64_t hostSize = message.read<uint64_t>();
 
-            mDirectory.push_back(node);
-        } else {
-            // TODO handle unregister
-        }
+        LOG_INFO("Read host size %1%", hostSize);
 
-        LOG_INFO("UPDATED CLUSTER STATE. RESPONDING.");
+        node.host = message.read(hostSize+1);
+
+        LOG_INFO("Read host %1%", node.host);
+
+        uint64_t tagSize = message.read<uint64_t>();
+
+        LOG_INFO("Read tag size %1%", tagSize);
+
+        node.tag = message.read(tagSize+1);
+
+        LOG_INFO("Read tag %1%", node.tag);
+
+        mDirectory.push_back(node);
 
         // Write response
-        uint32_t messageLength = sizeof(uint32_t);
-        con->writeResponse(messageId, ResponseType::CLUSTER_STATE, messageLength, []
-                (crossbow::buffer_writer& msg, std::error_code& /* ec */) {
-            msg.write(4567);
-        });
+        handleGetClusterState(con, messageId, message);
     }
 
     /**
@@ -167,27 +164,28 @@ void ServerManager::handleCommitTransaction(ServerSocket* con, crossbow::infinio
      */
     void ServerManager::handleGetClusterState(ServerSocket *con, crossbow::infinio::MessageId messageId,
                                               crossbow::buffer_reader &message) {
-
         // TODO: Read the requested tag
         crossbow::string requestedTag = "STORAGE";
 
         // Filter
-        auto tagFilter = [requestedTag](struct DirectoryEntry& entry) { return entry.tag == requestedTag; };
+        auto tagFilter = [requestedTag](struct DirectoryEntry& entry) { return entry.tag.compare(requestedTag) == 0; };
         std::vector<struct DirectoryEntry> matchingEntries;
         std::copy_if(mDirectory.begin(), mDirectory.end(), std::back_inserter(matchingEntries), tagFilter);
 
         // Construct address info
         auto getHost = [](struct DirectoryEntry& entry) { return entry.host; };
         std::vector<crossbow::string> matchingHosts;
-        std::transform(matchingEntries.begin(), matchingEntries.end(), std::back_inserter(matchingHosts), getHost);
+        // std::transform(matchingEntries.begin(), matchingEntries.end(), std::back_inserter(matchingHosts), getHost);
+        std::transform(mDirectory.begin(), mDirectory.end(), std::back_inserter(matchingHosts), getHost);
         crossbow::string nodeInfo = boost::algorithm::join(matchingHosts, ";");
 
-        LOG_INFO("GOT CLUSTER STATE. RESPONDING.");
+        LOG_INFO("Cluster info: %1%", nodeInfo);
 
         // Write response
-        uint64_t messageLength = nodeInfo.length();
+        uint32_t messageLength = sizeof(uint64_t) + nodeInfo.size() + 1;
         auto responseWriter = [nodeInfo](crossbow::buffer_writer& message, std::error_code& /* ec */) {
-            message.write(nodeInfo);
+            message.write(nodeInfo.size());
+            message.write(&nodeInfo, nodeInfo.size()+1);
         };
         con->writeResponse(messageId, ResponseType::CLUSTER_STATE, messageLength, responseWriter);
     }

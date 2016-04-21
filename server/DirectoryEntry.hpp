@@ -35,7 +35,6 @@ namespace tell {
         struct DirectoryEntry {
             crossbow::string host;
             crossbow::string tag;
-            uint16_t port;
         };
 
     } // namespace commitmanager

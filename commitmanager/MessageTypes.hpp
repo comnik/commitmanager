@@ -54,5 +54,9 @@ enum class ResponseType : uint32_t {
     CLUSTER_STATE
 };
 
+struct ClusterStateMsg {
+    crossbow::string hosts;
+};
+
 } // namespace commitmanager
 } // namespace tell
