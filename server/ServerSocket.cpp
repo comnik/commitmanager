@@ -80,12 +80,12 @@ void ServerManager::onMessage(ServerSocket* con, crossbow::infinio::MessageId me
         handleCommitTransaction(con, messageId, message);
     } break;
 
-    case crossbow::to_underlying(WrappedResponse::READ_CLUSTER): {
-        handleGetClusterState(con, messageId, message);
+    case crossbow::to_underlying(WrappedResponse::REGISTER_NODE): {
+        handleRegisterNode(con, messageId, message);
     } break;
 
-    case crossbow::to_underlying(WrappedResponse::UPDATE_CLUSTER): {
-        handleUpdateClusterState(con, messageId, message);
+    case crossbow::to_underlying(WrappedResponse::UNREGISTER_NODE): {
+        handleUnregisterNode(con, messageId, message);
     } break;
 
     default: {
@@ -129,66 +129,89 @@ void ServerManager::handleCommitTransaction(ServerSocket* con, crossbow::infinio
     });
 }
 
-    /**
-     * @brief Updates the node directory with new status information from a node.
-     */
-    void ServerManager::handleUpdateClusterState(ServerSocket *con, crossbow::infinio::MessageId messageId,
-                                                 crossbow::buffer_reader &message) {
+/**
+ * @brief Updates the node directory with new status information from a node.
+ */
+void ServerManager::handleRegisterNode(ServerSocket *con, crossbow::infinio::MessageId messageId,
+                                             crossbow::buffer_reader &message) {
+    // Update cluster state
+    DirectoryEntry node;
+    uint64_t hostSize = message.read<uint64_t>();
 
-        // Update cluster state
-        DirectoryEntry node;
-        uint64_t hostSize = message.read<uint64_t>();
+    LOG_INFO("Read host size %1%", hostSize);
 
-        LOG_INFO("Read host size %1%", hostSize);
+    node.host = message.read(hostSize+1);
 
-        node.host = message.read(hostSize+1);
+    LOG_INFO("Read host %1%", node.host);
 
-        LOG_INFO("Read host %1%", node.host);
+    uint64_t tagSize = message.read<uint64_t>();
 
-        uint64_t tagSize = message.read<uint64_t>();
+    LOG_INFO("Read tag size %1%", tagSize);
 
-        LOG_INFO("Read tag size %1%", tagSize);
+    node.tag = message.read(tagSize+1);
 
-        node.tag = message.read(tagSize+1);
+    LOG_INFO("Read tag %1%", node.tag);
 
-        LOG_INFO("Read tag %1%", node.tag);
+    mDirectory.push_back(node);
 
-        mDirectory.push_back(node);
+    // Write response
+    handleGetClusterState(con, messageId, message);
+}
 
-        // Write response
-        handleGetClusterState(con, messageId, message);
+/**
+ * @brief Updates the node directory with new status information from a node.
+ */
+void ServerManager::handleUnregisterNode(ServerSocket *con, crossbow::infinio::MessageId messageId,
+                                             crossbow::buffer_reader &message) {
+    // Update cluster state
+    uint64_t hostSize = message.read<uint64_t>();
+    crossbow::string host = message.read(hostSize+1);
+
+    LOG_INFO("Unregistering node %1%...", host);
+
+    for (DirectoryEntry const& node : mDirectory) {
+        if (node.host == host) {
+
+        }
     }
 
-    /**
-     * @brief Filters the node directory by the requested tag and returns address info back to the client.
-     */
-    void ServerManager::handleGetClusterState(ServerSocket *con, crossbow::infinio::MessageId messageId,
-                                              crossbow::buffer_reader &message) {
-        // TODO: Read the requested tag
-        crossbow::string requestedTag = "STORAGE";
+    // Write response
+    uint32_t messageLength = sizeof(uint8_t);
+    auto responseWriter = [](crossbow::buffer_writer& message, std::error_code& /* ec */) { 
+        message.write<uint8_t>(0x1u); 
+    };
+    con->writeResponse(messageId, ResponseType::COMMIT, messageLength, responseWriter);
+}
 
-        // Filter
-        auto tagFilter = [requestedTag](struct DirectoryEntry& entry) { return entry.tag.compare(requestedTag) == 0; };
-        std::vector<struct DirectoryEntry> matchingEntries;
-        std::copy_if(mDirectory.begin(), mDirectory.end(), std::back_inserter(matchingEntries), tagFilter);
-
-        // Construct address info
-        auto getHost = [](struct DirectoryEntry& entry) { return entry.host; };
-        std::vector<crossbow::string> matchingHosts;
-        // std::transform(matchingEntries.begin(), matchingEntries.end(), std::back_inserter(matchingHosts), getHost);
-        std::transform(mDirectory.begin(), mDirectory.end(), std::back_inserter(matchingHosts), getHost);
-        crossbow::string nodeInfo = boost::algorithm::join(matchingHosts, ";");
-
-        LOG_INFO("Cluster info: %1%", nodeInfo);
-
-        // Write response
-        uint32_t messageLength = sizeof(uint64_t) + nodeInfo.size() + 1;
-        auto responseWriter = [nodeInfo](crossbow::buffer_writer& message, std::error_code& /* ec */) {
-            message.write(nodeInfo.size());
-            message.write(&nodeInfo, nodeInfo.size()+1);
-        };
-        con->writeResponse(messageId, ResponseType::CLUSTER_STATE, messageLength, responseWriter);
+/**
+ * @brief Filters the node directory by the requested tag and returns address info back to the client.
+ */
+void ServerManager::handleGetClusterState(ServerSocket *con, crossbow::infinio::MessageId messageId,
+                                          crossbow::buffer_reader &message) {
+    // TODO: Read the requested tag
+    crossbow::string requestedTag = "STORAGE";
+    std::vector<crossbow::string> matchingHosts;
+    
+    for (auto const& node : mDirectory) {
+        // TODO
+        // LOG_INFO("Comparing %1% to %2%, result %3%", node.tag, requestedTag, node.tag == requestedTag);
+        // if (node.tag == requestedTag) {
+            matchingHosts.push_back(node.host);
+        // }
     }
+
+    crossbow::string nodeInfo = boost::algorithm::join(matchingHosts, ";");
+
+    LOG_INFO("Cluster info: %1%", nodeInfo);
+
+    // Write response
+    uint32_t messageLength = sizeof(uint64_t) + nodeInfo.size() + 1;
+    auto responseWriter = [nodeInfo](crossbow::buffer_writer& message, std::error_code& /* ec */) {
+        message.write(nodeInfo.size());
+        message.write(&nodeInfo, nodeInfo.size()+1);
+    };
+    con->writeResponse(messageId, ResponseType::CLUSTER_STATE, messageLength, responseWriter);
+}
 
 } // namespace commitmanager
 } // namespace tell

@@ -77,53 +77,37 @@ std::shared_ptr<CommitResponse> ClientSocket::commitTransaction(crossbow::infini
     return response;
 }
 
-    std::shared_ptr<ClusterStateResponse> ClientSocket::readDirectory(crossbow::infinio::Fiber &fiber,
-                                                                          crossbow::string tag) {
-        auto response = std::make_shared<ClusterStateResponse>(fiber);
+std::shared_ptr<ClusterStateResponse> ClientSocket::registerNode(crossbow::infinio::Fiber &fiber,
+                                                                     crossbow::string host,
+                                                                     crossbow::string tag) {
+    auto response = std::make_shared<ClusterStateResponse>(fiber);
 
-        uint64_t messageLength = tag.length();
-        auto requestWriter = [tag] (crossbow::buffer_writer& message, std::error_code& /* ec */) {
-            message.write(tag);
-        };
+    uint32_t messageLength = 2*sizeof(uint64_t) + (host.size()+1) + (tag.size()+1);
+    auto requestWriter = [host, tag] (crossbow::buffer_writer& message, std::error_code& /* ec */) {
+        message.write(host.size());
+        message.write(&host, host.size()+1);
+        message.write(tag.size());
+        message.write(&tag, tag.size()+1);
+    };
 
-        sendRequest(response, WrappedResponse::READ_CLUSTER, messageLength, requestWriter);
+    sendRequest(response, WrappedResponse::REGISTER_NODE, messageLength, requestWriter);
+    return response;
+}
 
-        return response;
-    }
+std::shared_ptr<CommitResponse> ClientSocket::unregisterNode(
+    crossbow::infinio::Fiber &fiber, crossbow::string host) {
 
-    std::shared_ptr<ClusterStateResponse> ClientSocket::registerNode(crossbow::infinio::Fiber &fiber,
-                                                                         crossbow::string host,
-                                                                         crossbow::string tag) {
-        auto response = std::make_shared<ClusterStateResponse>(fiber);
+    auto response = std::make_shared<CommitResponse>(fiber);
 
-        uint32_t messageLength = 2*sizeof(uint64_t) + (host.size()+1) + (tag.size()+1);
+    uint32_t messageLength = sizeof(uint64_t) + host.size() + 1;
+    auto requestWriter = [host] (crossbow::buffer_writer& message, std::error_code& /* ec */) {
+        message.write(host.size());
+        message.write(&host, host.size()+1);
+    };
 
-        LOG_INFO("Request size: %1%", messageLength);
-
-        auto requestWriter = [host, tag] (crossbow::buffer_writer& message, std::error_code& /* ec */) {
-            message.write(host.size());
-            message.write(&host, host.size()+1);
-            message.write(tag.size());
-            message.write(&tag, tag.size()+1);
-        };
-
-        sendRequest(response, WrappedResponse::UPDATE_CLUSTER, messageLength, requestWriter);
-
-        return response;
-    }
-
-    std::shared_ptr<ClusterStateResponse> ClientSocket::unregisterNode(crossbow::infinio::Fiber &fiber) {
-        auto response = std::make_shared<ClusterStateResponse>(fiber);
-
-        uint64_t messageLength = 0;
-        auto requestWriter = [] (crossbow::buffer_writer& message, std::error_code& /* ec */) {
-            // TODO
-        };
-
-        sendRequest(response, WrappedResponse::READ_CLUSTER, messageLength, requestWriter);
-
-        return response;
-    }
+    sendRequest(response, WrappedResponse::UNREGISTER_NODE, messageLength, requestWriter);
+    return response;
+}
 
 } // namespace commitmanager
 } // namespace tell

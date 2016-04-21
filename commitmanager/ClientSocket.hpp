@@ -118,15 +118,16 @@ public:
 
     std::shared_ptr<CommitResponse> commitTransaction(crossbow::infinio::Fiber& fiber, uint64_t version);
 
-    std::shared_ptr<ClusterStateResponse> readDirectory(crossbow::infinio::Fiber& fiber, crossbow::string tag);
-
     std::shared_ptr<ClusterStateResponse> registerNode(
-            crossbow::infinio::Fiber& fiber,
-            crossbow::string host,
-            crossbow::string tag
+        crossbow::infinio::Fiber& fiber,
+        crossbow::string host,
+        crossbow::string tag
     );
 
-    std::shared_ptr<ClusterStateResponse> unregisterNode(crossbow::infinio::Fiber& fiber);
+    std::shared_ptr<CommitResponse> unregisterNode(
+        crossbow::infinio::Fiber& fiber,
+        crossbow::string host
+    );
 };
 
 } // namespace commitmanager

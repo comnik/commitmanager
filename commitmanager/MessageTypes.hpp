@@ -41,8 +41,8 @@ const crossbow::string& handshakeString();
 enum class WrappedResponse : uint32_t {
     START = 0x1u,
     COMMIT,
-    READ_CLUSTER,
-    UPDATE_CLUSTER
+    REGISTER_NODE,
+    UNREGISTER_NODE
 };
 
 /**

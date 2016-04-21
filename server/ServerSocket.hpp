@@ -84,7 +84,10 @@ private:
     void handleGetClusterState(ServerSocket *con, crossbow::infinio::MessageId messageId,
                                crossbow::buffer_reader &message);
 
-    void handleUpdateClusterState(ServerSocket *con, crossbow::infinio::MessageId messageId,
+    void handleRegisterNode(ServerSocket *con, crossbow::infinio::MessageId messageId,
+                                  crossbow::buffer_reader &message);
+
+    void handleUnregisterNode(ServerSocket *con, crossbow::infinio::MessageId messageId,
                                   crossbow::buffer_reader &message);
 
     std::unique_ptr<crossbow::infinio::InfinibandProcessor> mProcessor;

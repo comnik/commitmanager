@@ -68,26 +68,33 @@ int main(int argc, const char** argv) {
     processor->executeFiber([&client] (crossbow::infinio::Fiber& fiber) {
         LOG_INFO("Registering with the node directory");
         auto registerResponse = client.registerNode(fiber, "somenode:8080", "STORAGE");
-
         if (!registerResponse->waitForResult()) {
             auto& ec = registerResponse->error();
             LOG_INFO("Error while receiving cluster information [error = %1% %2%]", ec, ec.message());
             return;
         }
-
         auto storageNodes = registerResponse->get();
         LOG_INFO("Received storage node info: %1%", storageNodes);
 
         LOG_INFO("Unregistering with the node directory");
-        auto unregisterResponse = client.unregisterNode(fiber);
+        auto unregisterResponse = client.unregisterNode(fiber, "somenode:8080");
         if (!unregisterResponse->waitForResult()) {
             auto& ec = unregisterResponse->error();
             LOG_INFO("Error while reading cluster information [error = %1% %2%]", ec, ec.message());
             return;
         }
-        
-        storageNodes = unregisterResponse->get();
-        LOG_INFO("Received storage node info: %1%", storageNodes);
+        auto unregisterSucceeded = unregisterResponse->get();
+        LOG_INFO("Unregistering succeeded? %1%", unregisterSucceeded);
+
+        LOG_INFO("Re-registering with the node directory");
+        auto reRegisterResponse = client.registerNode(fiber, "somenode:8080", "STORAGE");
+        if (!reRegisterResponse->waitForResult()) {
+            auto& ec = reRegisterResponse->error();
+            LOG_INFO("Error while receiving cluster information [error = %1% %2%]", ec, ec.message());
+            return;
+        }
+        auto newStorageNodes = reRegisterResponse->get();
+        LOG_INFO("Received storage node info: %1%", newStorageNodes);
 
         LOG_INFO("Starting transaction");
         auto startResponse = client.startTransaction(fiber, false);
