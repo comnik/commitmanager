@@ -169,9 +169,10 @@ void ServerManager::handleUnregisterNode(ServerSocket *con, crossbow::infinio::M
 
     LOG_INFO("Unregistering node %1%...", host);
 
-    for (DirectoryEntry const& node : mDirectory) {
-        if (node.host == host) {
-
+    for (auto it = mDirectory.begin(); it != mDirectory.end(); ++it) {
+        if (it->host == host) {
+            mDirectory.erase(it);
+            break;
         }
     }
 
