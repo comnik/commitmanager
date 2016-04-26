@@ -134,25 +134,17 @@ void ServerManager::handleCommitTransaction(ServerSocket* con, crossbow::infinio
  */
 void ServerManager::handleRegisterNode(ServerSocket *con, crossbow::infinio::MessageId messageId,
                                              crossbow::buffer_reader &message) {
-    // Update cluster state
-    DirectoryEntry node;
-    uint64_t hostSize = message.read<uint64_t>();
+    uint64_t hostSize = message.read<uint32_t>();
+    crossbow::string host(message.read(hostSize), hostSize);
+    uint64_t tagSize = message.read<uint32_t>();
+    crossbow::string tag(message.read(tagSize), tagSize);
+    
+    // LOG_INFO("Read host size %1%", hostSize);
+    // LOG_INFO("Read host %1%", host);
+    // LOG_INFO("Read tag size %1%", tagSize);
+    // LOG_INFO("Read tag %1%", tag);
 
-    LOG_INFO("Read host size %1%", hostSize);
-
-    node.host = message.read(hostSize+1);
-
-    LOG_INFO("Read host %1%", node.host);
-
-    uint64_t tagSize = message.read<uint64_t>();
-
-    LOG_INFO("Read tag size %1%", tagSize);
-
-    node.tag = message.read(tagSize+1);
-
-    LOG_INFO("Read tag %1%", node.tag);
-
-    mDirectory.push_back(node);
+    mDirectory.emplace_back(host, tag);
 
     // Write response
     handleGetClusterState(con, messageId, message);
@@ -194,22 +186,20 @@ void ServerManager::handleGetClusterState(ServerSocket *con, crossbow::infinio::
     std::vector<crossbow::string> matchingHosts;
     
     for (auto const& node : mDirectory) {
-        // TODO
-        // LOG_INFO("Comparing %1% to %2%, result %3%", node.tag, requestedTag, node.tag == requestedTag);
-        // if (node.tag == requestedTag) {
+        if (node.tag == requestedTag) {
+            LOG_INFO("Matched a host %1%", node.host);
             matchingHosts.push_back(node.host);
-        // }
+        }
     }
 
     crossbow::string nodeInfo = boost::algorithm::join(matchingHosts, ";");
-
     LOG_INFO("Cluster info: %1%", nodeInfo);
 
     // Write response
-    uint32_t messageLength = sizeof(uint64_t) + nodeInfo.size() + 1;
+    uint32_t messageLength = sizeof(uint32_t) + nodeInfo.size();
     auto responseWriter = [nodeInfo](crossbow::buffer_writer& message, std::error_code& /* ec */) {
-        message.write(nodeInfo.size());
-        message.write(&nodeInfo, nodeInfo.size()+1);
+        message.write<uint32_t>(nodeInfo.size());
+        message.write(nodeInfo.data(), nodeInfo.size());
     };
     con->writeResponse(messageId, ResponseType::CLUSTER_STATE, messageLength, responseWriter);
 }

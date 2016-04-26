@@ -37,8 +37,8 @@ void CommitResponse::processResponse(crossbow::buffer_reader& message) {
 }
 
 void ClusterStateResponse::processResponse(crossbow::buffer_reader &message) {
-    uint64_t msgSize = message.read<uint64_t>();
-    setResult(message.read(msgSize));
+    uint32_t msgSize = message.read<uint32_t>();
+    setResult(crossbow::string(message.read(msgSize), msgSize));
 }
 
 void ClientSocket::connect(const crossbow::infinio::Endpoint& host) {
@@ -82,12 +82,12 @@ std::shared_ptr<ClusterStateResponse> ClientSocket::registerNode(crossbow::infin
                                                                      crossbow::string tag) {
     auto response = std::make_shared<ClusterStateResponse>(fiber);
 
-    uint32_t messageLength = 2*sizeof(uint64_t) + (host.size()+1) + (tag.size()+1);
+    uint32_t messageLength = 2 * sizeof(uint32_t) + host.size() + tag.size();
     auto requestWriter = [host, tag] (crossbow::buffer_writer& message, std::error_code& /* ec */) {
-        message.write(host.size());
-        message.write(&host, host.size()+1);
-        message.write(tag.size());
-        message.write(&tag, tag.size()+1);
+        message.write<uint32_t>(host.size());
+        message.write(host.data(), host.size());
+        message.write<uint32_t>(tag.size());
+        message.write(tag.data(), tag.size());
     };
 
     sendRequest(response, WrappedResponse::REGISTER_NODE, messageLength, requestWriter);

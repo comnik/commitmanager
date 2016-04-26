@@ -35,6 +35,10 @@ namespace tell {
         struct DirectoryEntry {
             crossbow::string host;
             crossbow::string tag;
+            DirectoryEntry(crossbow::string h, crossbow::string t) :
+                host(h),
+                tag(t)
+                {}
         };
 
     } // namespace commitmanager
