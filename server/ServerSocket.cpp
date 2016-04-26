@@ -156,13 +156,13 @@ void ServerManager::handleRegisterNode(ServerSocket *con, crossbow::infinio::Mes
 void ServerManager::handleUnregisterNode(ServerSocket *con, crossbow::infinio::MessageId messageId,
                                              crossbow::buffer_reader &message) {
     // Update cluster state
-    uint64_t hostSize = message.read<uint64_t>();
-    crossbow::string host = message.read(hostSize+1);
-
-    LOG_INFO("Unregistering node %1%...", host);
+    uint32_t hostSize = message.read<uint32_t>();
+    crossbow::string host(message.read(hostSize), hostSize);
 
     for (auto it = mDirectory.begin(); it != mDirectory.end(); ++it) {
+        // LOG_INFO("Comparing host %1% to %2%, result = %3%", it->host, host, it->host == host);
         if (it->host == host) {
+            LOG_INFO("Unregistering node: %1%", it->host);
             mDirectory.erase(it);
             break;
         }

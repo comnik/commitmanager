@@ -99,10 +99,10 @@ std::shared_ptr<CommitResponse> ClientSocket::unregisterNode(
 
     auto response = std::make_shared<CommitResponse>(fiber);
 
-    uint32_t messageLength = sizeof(uint64_t) + host.size() + 1;
+    uint32_t messageLength = sizeof(uint32_t) + host.size();
     auto requestWriter = [host] (crossbow::buffer_writer& message, std::error_code& /* ec */) {
-        message.write(host.size());
-        message.write(&host, host.size()+1);
+        message.write<uint32_t>(host.size());
+        message.write(host.data(), host.size());
     };
 
     sendRequest(response, WrappedResponse::UNREGISTER_NODE, messageLength, requestWriter);
