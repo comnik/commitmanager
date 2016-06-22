@@ -81,8 +81,8 @@ private:
 /**
 * @brief Response for a Get-Nodes request
 */
-class ClusterStateResponse final : public crossbow::infinio::RpcResponseResult<ClusterStateResponse, crossbow::string> {
-    using Base = crossbow::infinio::RpcResponseResult<ClusterStateResponse, crossbow::string>;
+class ClusterStateResponse final : public crossbow::infinio::RpcResponseResult<ClusterStateResponse, std::unique_ptr<ClusterMeta>> {
+    using Base = crossbow::infinio::RpcResponseResult<ClusterStateResponse, std::unique_ptr<ClusterMeta>>;
 
 public:
     using Base::Base;

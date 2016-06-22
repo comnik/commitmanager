@@ -73,8 +73,13 @@ int main(int argc, const char** argv) {
             LOG_INFO("Error while receiving cluster information [error = %1% %2%]", ec, ec.message());
             return;
         }
-        auto storageNodes = registerResponse->get();
-        LOG_INFO("Received storage node info: %1%", storageNodes);
+        auto clusterMeta = registerResponse->get();
+        LOG_INFO("Received storage node info: %1%", clusterMeta->hosts);
+        
+        LOG_INFO("Responsible for ranges:");
+        for (auto const& range : clusterMeta->ranges) {
+            LOG_INFO("\t[%1%, %2%] owned by %3%", range.start, range.end, range.owner);
+        }
 
         LOG_INFO("Unregistering with the node directory");
         auto unregisterResponse = client.unregisterNode(fiber, "somenode:8080");
@@ -93,8 +98,8 @@ int main(int argc, const char** argv) {
             LOG_INFO("Error while receiving cluster information [error = %1% %2%]", ec, ec.message());
             return;
         }
-        auto newStorageNodes = reRegisterResponse->get();
-        LOG_INFO("Received storage node info: %1%", newStorageNodes);
+        auto newClusterMeta = reRegisterResponse->get();
+        LOG_INFO("Received storage node info: %1%", newClusterMeta->hosts);
 
         LOG_INFO("Starting transaction");
         auto startResponse = client.startTransaction(fiber, false);

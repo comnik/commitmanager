@@ -24,6 +24,7 @@
 #pragma once
 
 #include <cstdint>
+#include <vector>
 
 #include <crossbow/string.hpp>
 
@@ -54,8 +55,24 @@ enum class ResponseType : uint32_t {
     CLUSTER_STATE
 };
 
-struct ClusterStateMsg {
+// Describes a partition [start, end] and the node that currently owns it
+struct Partition {
+    const crossbow::string owner;
+    uint64_t start;
+    uint64_t end;
+
+    Partition(crossbow::string owner, uint64_t start, uint64_t end) :
+                owner(owner),
+                start(start),
+                end(end)
+                {}
+};
+
+struct ClusterMeta {
+    // Other hosts in the cluster
     crossbow::string hosts;
+    // Ranges the recipient is responsible for
+    std::vector<Partition> ranges;
 };
 
 } // namespace commitmanager

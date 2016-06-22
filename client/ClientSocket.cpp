@@ -22,6 +22,7 @@
  */
 
 #include <commitmanager/ClientSocket.hpp>
+#include <commitmanager/MessageTypes.hpp>
 
 #include <crossbow/logger.hpp>
 
@@ -37,8 +38,14 @@ void CommitResponse::processResponse(crossbow::buffer_reader& message) {
 }
 
 void ClusterStateResponse::processResponse(crossbow::buffer_reader &message) {
-    uint32_t msgSize = message.read<uint32_t>();
-    setResult(crossbow::string(message.read(msgSize), msgSize));
+    std::unique_ptr<ClusterMeta> clusterMeta(new ClusterMeta);
+
+    uint32_t hostsSize = message.read<uint32_t>();
+    clusterMeta->hosts = crossbow::string(message.read(hostsSize), hostsSize);
+    
+    clusterMeta->ranges.emplace_back("localhost:7243", 1, 50);
+    
+    setResult(std::move(clusterMeta));
 }
 
 void ClientSocket::connect(const crossbow::infinio::Endpoint& host) {
