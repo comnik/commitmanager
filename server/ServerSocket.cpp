@@ -195,11 +195,29 @@ void ServerManager::handleGetClusterState(ServerSocket *con, crossbow::infinio::
     crossbow::string nodeInfo = boost::algorithm::join(matchingHosts, ";");
     LOG_INFO("Cluster info: %1%", nodeInfo);
 
+    std::vector<Partition> ranges;
+    ranges.emplace_back("localhost:7243", 1, 50);
+
     // Write response
-    uint32_t messageLength = sizeof(uint32_t) + nodeInfo.size();
-    auto responseWriter = [nodeInfo](crossbow::buffer_writer& message, std::error_code& /* ec */) {
+    uint32_t messageLength = sizeof(uint32_t) + nodeInfo.size() + sizeof(uint32_t);
+    for (auto const &range : ranges) {
+        messageLength += 2*sizeof(uint64_t) + sizeof(uint32_t) + range.owner.size();
+    }
+
+    auto responseWriter = [nodeInfo, &ranges](crossbow::buffer_writer& message, std::error_code& /* ec */) {
+        // Write host addresses
         message.write<uint32_t>(nodeInfo.size());
         message.write(nodeInfo.data(), nodeInfo.size());
+
+        // Write ranges
+        message.write<uint32_t>(ranges.size()); // number of ranges
+        for (auto const& range : ranges) {            
+            message.write<uint64_t>(range.start);
+            message.write<uint64_t>(range.end);
+
+            message.write<uint32_t>(range.owner.size());
+            message.write(range.owner.data(), range.owner.size());
+        }
     };
     con->writeResponse(messageId, ResponseType::CLUSTER_STATE, messageLength, responseWriter);
 }

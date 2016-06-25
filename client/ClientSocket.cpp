@@ -40,10 +40,20 @@ void CommitResponse::processResponse(crossbow::buffer_reader& message) {
 void ClusterStateResponse::processResponse(crossbow::buffer_reader &message) {
     std::unique_ptr<ClusterMeta> clusterMeta(new ClusterMeta);
 
+    // Read host addresses
     uint32_t hostsSize = message.read<uint32_t>();
     clusterMeta->hosts = crossbow::string(message.read(hostsSize), hostsSize);
     
-    clusterMeta->ranges.emplace_back("localhost:7243", 1, 50);
+    // Read ranges
+    uint32_t numRanges = message.read<uint32_t>();
+    for (uint32_t i = 0; i < numRanges; ++i) {
+        uint64_t rangeStart = message.read<uint64_t>();
+        uint64_t rangeEnd   = message.read<uint64_t>();
+
+        uint32_t ownerSize = message.read<uint32_t>();
+
+        clusterMeta->ranges.emplace_back(crossbow::string(message.read(ownerSize), ownerSize), rangeStart, rangeEnd);
+    }
     
     setResult(std::move(clusterMeta));
 }
