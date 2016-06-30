@@ -67,7 +67,7 @@ namespace commitmanager {
         crossbow::string composite_key = crossbow::to_string(tableId) + crossbow::to_string(key);
         MurmurHash3_x64_128(&composite_key, 128, 0, &hash);
         
-        return hash;        
+        return std::move(hash);        
     }
 
     template <class Node>
@@ -122,10 +122,9 @@ namespace commitmanager {
 
             auto rangeIterators = node_ring.equal_range(hash);
 
-            ranges.emplace_back("localhost:7243", rangeIterators.first->first, rangeIterators.second->first);
+            // ranges.emplace_back("localhost:7243", rangeIterators.first->first, rangeIterators.second->first);
+            ranges.emplace_back("localhost:7243", 0, rangeIterators.second->first);
         // }
-
-        // ranges.emplace_back("localhost:7243", 1, 50);
 
         return std::move(ranges);
     }
