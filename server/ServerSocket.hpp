@@ -25,6 +25,8 @@
 #include "ServerConfig.hpp"
 
 #include <commitmanager/CommitManager.hpp>
+#include <commitmanager/HashRing.hpp>
+
 #include <server/DirectoryEntry.hpp>
 
 #include <crossbow/byte_buffer.hpp>
@@ -81,9 +83,6 @@ private:
     void handleCommitTransaction(ServerSocket* con, crossbow::infinio::MessageId messageId,
             crossbow::buffer_reader& message);
 
-    void handleGetClusterState(ServerSocket *con, crossbow::infinio::MessageId messageId,
-                               crossbow::buffer_reader &message);
-
     void handleRegisterNode(ServerSocket *con, crossbow::infinio::MessageId messageId,
                                   crossbow::buffer_reader &message);
 
@@ -97,6 +96,7 @@ private:
     CommitManager mCommitManager;
 
     std::vector<struct DirectoryEntry> mDirectory;
+    HashRing<size_t> mNodeRing;
 };
 
 } // namespace commitmanager

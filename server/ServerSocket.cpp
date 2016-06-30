@@ -44,8 +44,8 @@ void ServerSocket::onRequest(crossbow::infinio::MessageId messageId, uint32_t me
 ServerManager::ServerManager(crossbow::infinio::InfinibandService& service, const ServerConfig& config)
         : Base(service, config.port),
           mProcessor(service.createProcessor()),
-          mMaxBatchSize(config.maxBatchSize) {
-}
+          mMaxBatchSize(config.maxBatchSize),
+          mNodeRing(200) {} // @TODO
 
 ServerSocket* ServerManager::createConnection(crossbow::infinio::InfinibandSocket socket,
         const crossbow::string& data) {
@@ -146,47 +146,12 @@ void ServerManager::handleRegisterNode(ServerSocket *con, crossbow::infinio::Mes
 
     mDirectory.emplace_back(host, tag);
 
-    // Write response
-    handleGetClusterState(con, messageId, message);
-}
+    size_t idx = mDirectory.size() - 1;
+    mNodeRing.insertNode(host, idx);
 
-/**
- * @brief Updates the node directory with new status information from a node.
- */
-void ServerManager::handleUnregisterNode(ServerSocket *con, crossbow::infinio::MessageId messageId,
-                                             crossbow::buffer_reader &message) {
-    // Update cluster state
-    uint32_t hostSize = message.read<uint32_t>();
-    crossbow::string host(message.read(hostSize), hostSize);
-
-    for (auto it = mDirectory.begin(); it != mDirectory.end(); ++it) {
-        // LOG_INFO("Comparing host %1% to %2%, result = %3%", it->host, host, it->host == host);
-        if (it->host == host) {
-            LOG_INFO("Unregistering node: %1%", it->host);
-            mDirectory.erase(it);
-            break;
-        }
-    }
-
-    // Write response
-    uint32_t messageLength = sizeof(uint8_t);
-    auto responseWriter = [](crossbow::buffer_writer& message, std::error_code& /* ec */) { 
-        message.write<uint8_t>(0x1u); 
-    };
-    con->writeResponse(messageId, ResponseType::COMMIT, messageLength, responseWriter);
-}
-
-/**
- * @brief Filters the node directory by the requested tag and returns address info back to the client.
- */
-void ServerManager::handleGetClusterState(ServerSocket *con, crossbow::infinio::MessageId messageId,
-                                          crossbow::buffer_reader &message) {
-    // TODO: Read the requested tag
-    crossbow::string requestedTag = "STORAGE";
     std::vector<crossbow::string> matchingHosts;
-    
     for (auto const& node : mDirectory) {
-        if (node.tag == requestedTag) {
+        if (node.tag == tag) {
             LOG_INFO("Matched a host %1%", node.host);
             matchingHosts.push_back(node.host);
         }
@@ -195,8 +160,7 @@ void ServerManager::handleGetClusterState(ServerSocket *con, crossbow::infinio::
     crossbow::string nodeInfo = boost::algorithm::join(matchingHosts, ";");
     LOG_INFO("Cluster info: %1%", nodeInfo);
 
-    std::vector<Partition> ranges;
-    ranges.emplace_back("localhost:7243", 1, 50);
+    std::vector<Partition> ranges = mNodeRing.getRanges(host);
 
     // Write response
     uint32_t messageLength = sizeof(uint32_t) + nodeInfo.size() + sizeof(uint32_t);
@@ -220,6 +184,34 @@ void ServerManager::handleGetClusterState(ServerSocket *con, crossbow::infinio::
         }
     };
     con->writeResponse(messageId, ResponseType::CLUSTER_STATE, messageLength, responseWriter);
+}
+
+/**
+ * @brief Updates the node directory with new status information from a node.
+ */
+void ServerManager::handleUnregisterNode(ServerSocket *con, crossbow::infinio::MessageId messageId,
+                                             crossbow::buffer_reader &message) {
+    // Update cluster state
+    uint32_t hostSize = message.read<uint32_t>();
+    crossbow::string host(message.read(hostSize), hostSize);
+
+    for (auto it = mDirectory.begin(); it != mDirectory.end(); ++it) {
+        // LOG_INFO("Comparing host %1% to %2%, result = %3%", it->host, host, it->host == host);
+        if (it->host == host) {
+            LOG_INFO("Unregistering node: %1%", it->host);
+            mDirectory.erase(it);
+            break;
+        }
+    }
+
+    mNodeRing.removeNode(host);
+
+    // Write response
+    uint32_t messageLength = sizeof(uint8_t);
+    auto responseWriter = [](crossbow::buffer_writer& message, std::error_code& /* ec */) { 
+        message.write<uint8_t>(0x1u); 
+    };
+    con->writeResponse(messageId, ResponseType::COMMIT, messageLength, responseWriter);
 }
 
 } // namespace commitmanager

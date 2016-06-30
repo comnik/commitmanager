@@ -78,7 +78,7 @@ int main(int argc, const char** argv) {
         
         LOG_INFO("Responsible for ranges:");
         for (auto const& range : clusterMeta->ranges) {
-            LOG_INFO("\t[%1%, %2%] owned by %3%", range.start, range.end, range.owner);
+            LOG_INFO("\t[%1%, %2%] owned by %3%", (uint64_t) range.start, (uint64_t) range.end, range.owner);
         }
 
         LOG_INFO("Unregistering with the node directory");

@@ -6,6 +6,7 @@ set(COMMON_SRCS
     Descriptor.cpp
     MessageTypes.cpp
     SnapshotDescriptor.cpp
+    MurmurHash3.cpp
 )
 
 set(COMMON_PUBLIC_HDR
@@ -13,6 +14,8 @@ set(COMMON_PUBLIC_HDR
     Descriptor.hpp
     MessageTypes.hpp
     SnapshotDescriptor.hpp
+    HashRing.hpp
+    MurmurHash3.h
 )
 
 # Transform public header list to use absolute paths

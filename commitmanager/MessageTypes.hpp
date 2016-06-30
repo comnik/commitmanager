@@ -55,13 +55,15 @@ enum class ResponseType : uint32_t {
     CLUSTER_STATE
 };
 
+using Hash = __int128;
+
 // Describes a partition [start, end] and the node that currently owns it
 struct Partition {
     const crossbow::string owner;
-    uint64_t start;
-    uint64_t end;
+    Hash start;
+    Hash end;
 
-    Partition(crossbow::string owner, uint64_t start, uint64_t end) :
+    Partition(crossbow::string owner, Hash start, Hash end) :
                 owner(owner),
                 start(start),
                 end(end)
