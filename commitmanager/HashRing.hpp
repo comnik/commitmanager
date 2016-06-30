@@ -32,8 +32,6 @@
 
 namespace tell {
 namespace commitmanager {
-    using Hash = __int128;
-
     /**
      * @brief Implementation of consistent hashing.
      */
@@ -44,6 +42,7 @@ namespace commitmanager {
                 : num_vnodes(num_vnodes) {}
             
             static Hash getPartitionToken(uint64_t tableId, uint64_t key);
+            static Hash getPartitionToken(const crossbow::string& nodeName, uint32_t vnode);
 
             Hash insertNode(const crossbow::string& nodeName, const Node& node);
             
@@ -65,18 +64,25 @@ namespace commitmanager {
     Hash HashRing<Node>::getPartitionToken(uint64_t tableId, uint64_t key) {
         Hash hash;
         crossbow::string composite_key = crossbow::to_string(tableId) + crossbow::to_string(key);
-        MurmurHash3_x64_128(&composite_key, 128, 0, &hash);
+        MurmurHash3_x64_128(composite_key.data(), composite_key.size(), HashRing<Node>::SEED, &hash);
         
         return std::move(hash);        
+    }
+
+    template <class Node>
+    Hash HashRing<Node>::getPartitionToken(const crossbow::string& nodeName, uint32_t vnode) {
+        Hash hash;
+        crossbow::string token = crossbow::to_string(vnode) + nodeName;
+        MurmurHash3_x64_128(token.data(), token.size(), HashRing<Node>::SEED, &hash);
+
+        return std::move(hash);
     }
 
     template <class Node>
     Hash HashRing<Node>::insertNode(const crossbow::string& nodeName, const Node& node) {
         Hash hash;
         for (uint32_t vnode = 0; vnode < num_vnodes; vnode++) {
-            crossbow::string token = crossbow::to_string(vnode) + nodeName;
-            MurmurHash3_x64_128(&token, token.size(), SEED, &hash);
-
+            hash = HashRing<Node>::getPartitionToken(nodeName, vnode);
             node_ring[hash] = node;
         }
         return std::move(hash);
@@ -86,9 +92,7 @@ namespace commitmanager {
     void HashRing<Node>::removeNode(const crossbow::string& nodeName) {
         Hash hash;
         for (size_t vnode = 0; vnode < num_vnodes; vnode++) {
-            crossbow::string token = crossbow::to_string(vnode) + nodeName;
-            MurmurHash3_x64_128(&token, token.size(), SEED, &hash);
-            
+            hash = HashRing<Node>::getPartitionToken(nodeName, vnode);
             node_ring.erase(hash);
         }
     }
@@ -98,11 +102,9 @@ namespace commitmanager {
         if (node_ring.empty()) {
             return nullptr;
         } else {
-            Hash hash;
-            crossbow::string composite_key = crossbow::to_string(tableId) + crossbow::to_string(key);
-            MurmurHash3_x64_128(&composite_key, 128, SEED, &hash);
+            Hash token = HashRing<Node>::getPartitionToken(tableId, key);
             
-            auto it = node_ring.lower_bound(hash);
+            auto it = node_ring.lower_bound(token);
             if (it == node_ring.end()) {
                 it = node_ring.begin();
             }
@@ -117,8 +119,7 @@ namespace commitmanager {
         Hash hash;
         uint32_t vnode = 0;
         // for (uint32_t vnode = 0; vnode < num_vnodes; vnode++) {
-            crossbow::string token = crossbow::to_string(vnode) + nodeName;
-            MurmurHash3_x64_128(&token, token.size(), SEED, &hash);
+            hash = HashRing<Node>::getPartitionToken(nodeName, vnode);
 
             auto rangeIterators = node_ring.equal_range(hash);
 
