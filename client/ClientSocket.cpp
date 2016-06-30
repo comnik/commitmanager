@@ -47,8 +47,8 @@ void ClusterStateResponse::processResponse(crossbow::buffer_reader &message) {
     // Read ranges
     uint32_t numRanges = message.read<uint32_t>();
     for (uint32_t i = 0; i < numRanges; ++i) {
-        uint64_t rangeStart = message.read<uint64_t>();
-        uint64_t rangeEnd   = message.read<uint64_t>();
+        Hash rangeStart = message.read<Hash>();
+        Hash rangeEnd   = message.read<Hash>();
 
         uint32_t ownerSize = message.read<uint32_t>();
 

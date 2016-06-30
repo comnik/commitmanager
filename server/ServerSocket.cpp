@@ -165,7 +165,7 @@ void ServerManager::handleRegisterNode(ServerSocket *con, crossbow::infinio::Mes
     // Write response
     uint32_t messageLength = sizeof(uint32_t) + nodeInfo.size() + sizeof(uint32_t);
     for (auto const &range : ranges) {
-        messageLength += 2*sizeof(uint64_t) + sizeof(uint32_t) + range.owner.size();
+        messageLength += 2*sizeof(Hash) + sizeof(uint32_t) + range.owner.size();
     }
 
     auto responseWriter = [nodeInfo, &ranges](crossbow::buffer_writer& message, std::error_code& /* ec */) {
@@ -176,8 +176,8 @@ void ServerManager::handleRegisterNode(ServerSocket *con, crossbow::infinio::Mes
         // Write ranges
         message.write<uint32_t>(ranges.size()); // number of ranges
         for (auto const& range : ranges) {            
-            message.write<uint64_t>(range.start);
-            message.write<uint64_t>(range.end);
+            message.write<Hash>(range.start);
+            message.write<Hash>(range.end);
 
             message.write<uint32_t>(range.owner.size());
             message.write(range.owner.data(), range.owner.size());
