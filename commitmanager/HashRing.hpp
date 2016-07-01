@@ -130,8 +130,7 @@ namespace commitmanager {
                 std::swap(rangeStart, rangeEnd);
             }
 
-            ranges.emplace_back("localhost:7243", (Hash) 0, rangeEnd);
-            // ranges.emplace_back("localhost:7243", (Hash) 0, (Hash) 50);
+            ranges.emplace_back("localhost:7243", rangeStart, rangeEnd);
         }
 
         return std::move(ranges);
