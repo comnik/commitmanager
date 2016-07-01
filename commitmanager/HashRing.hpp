@@ -25,6 +25,7 @@
 #include <map>
 
 #include <crossbow/string.hpp>
+#include <crossbow/logger.hpp>
 
 #include <commitmanager/MessageTypes.hpp>
 
@@ -66,7 +67,7 @@ namespace commitmanager {
         crossbow::string composite_key = crossbow::to_string(tableId) + crossbow::to_string(key);
         MurmurHash3_x64_128(composite_key.data(), composite_key.size(), HashRing<Node>::SEED, &hash);
         
-        return std::move(hash);        
+        return std::move(hash);
     }
 
     template <class Node>
@@ -117,15 +118,21 @@ namespace commitmanager {
         std::vector<Partition> ranges;
         
         Hash hash;
-        uint32_t vnode = 0;
-        // for (uint32_t vnode = 0; vnode < num_vnodes; vnode++) {
+        for (uint32_t vnode = 0; vnode < num_vnodes; vnode++) {
             hash = HashRing<Node>::getPartitionToken(nodeName, vnode);
 
             auto rangeIterators = node_ring.equal_range(hash);
+            Hash rangeStart = rangeIterators.first->first;
+            Hash rangeEnd = rangeIterators.second->first;
 
-            // ranges.emplace_back("localhost:7243", rangeIterators.first->first, rangeIterators.second->first);
-            ranges.emplace_back("localhost:7243", 0, rangeIterators.second->first);
-        // }
+            if (rangeStart > rangeEnd) {
+                LOG_INFO("range_start > range_end");
+                std::swap(rangeStart, rangeEnd);
+            }
+
+            ranges.emplace_back("localhost:7243", (Hash) 0, rangeEnd);
+            // ranges.emplace_back("localhost:7243", (Hash) 0, (Hash) 50);
+        }
 
         return std::move(ranges);
     }

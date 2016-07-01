@@ -55,7 +55,7 @@ enum class ResponseType : uint32_t {
     CLUSTER_STATE
 };
 
-using Hash = __int128;
+using Hash = unsigned __int128;
 
 // Describes a partition [start, end] and the node that currently owns it
 struct Partition {
