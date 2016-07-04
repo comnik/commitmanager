@@ -50,6 +50,7 @@ namespace commitmanager {
             void removeNode(const crossbow::string& nodeName);
             
             const Node* getNode(uint64_t tableId, uint64_t key);
+            const Node* getNode(Hash token);
 
             std::vector<Partition> getRanges(const crossbow::string& nodeName);
 
@@ -100,11 +101,15 @@ namespace commitmanager {
 
     template <class Node>
     const Node* HashRing<Node>::getNode(uint64_t tableId, uint64_t key) {
+        Hash token = HashRing<Node>::getPartitionToken(tableId, key);
+        return getNode(token);
+    }
+
+    template <class Node>
+    const Node* HashRing<Node>::getNode(Hash token) {
         if (node_ring.empty()) {
             return nullptr;
         } else {
-            Hash token = HashRing<Node>::getPartitionToken(tableId, key);
-            
             auto it = node_ring.lower_bound(token);
             if (it == node_ring.end()) {
                 it = node_ring.begin();

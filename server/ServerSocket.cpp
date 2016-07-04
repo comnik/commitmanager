@@ -146,8 +146,6 @@ void ServerManager::handleRegisterNode(ServerSocket *con, crossbow::infinio::Mes
 
     mDirectory.emplace_back(host, tag);
 
-    std::vector<Partition> ranges = mNodeRing.getRanges(host);
-
     size_t idx = mDirectory.size() - 1;
     mNodeRing.insertNode(host, idx);
 
@@ -161,6 +159,8 @@ void ServerManager::handleRegisterNode(ServerSocket *con, crossbow::infinio::Mes
 
     crossbow::string nodeInfo = boost::algorithm::join(matchingHosts, ";");
     LOG_INFO("Cluster info: %1%", nodeInfo);
+
+    std::vector<Partition> ranges = mNodeRing.getRanges(host);
 
     // Write response
     uint32_t messageLength = sizeof(uint32_t) + nodeInfo.size() + sizeof(uint32_t);
