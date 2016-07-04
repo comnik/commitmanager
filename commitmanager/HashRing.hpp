@@ -39,8 +39,8 @@ namespace commitmanager {
     template <class Node>
     class HashRing {
         public:
-            HashRing(size_t num_vnodes) 
-                : num_vnodes(num_vnodes) {}
+            HashRing(size_t numVirtualNodes) 
+                : numVirtualNodes(numVirtualNodes) {}
             
             static Hash getPartitionToken(uint64_t tableId, uint64_t key);
             static Hash getPartitionToken(const crossbow::string& nodeName, uint32_t vnode);
@@ -49,6 +49,8 @@ namespace commitmanager {
             
             void removeNode(const crossbow::string& nodeName);
             
+            void clear();
+
             const Node* getNode(uint64_t tableId, uint64_t key);
             const Node* getNode(Hash token);
 
@@ -58,8 +60,8 @@ namespace commitmanager {
             // Murmur seed
             static const uint32_t SEED = 0;
 
-            const size_t num_vnodes;
-            std::map<Hash, Node> node_ring;
+            const size_t numVirtualNodes;
+            std::map<Hash, Node> nodeRing;
     };
 
     template <class Node>
@@ -83,9 +85,9 @@ namespace commitmanager {
     template <class Node>
     Hash HashRing<Node>::insertNode(const crossbow::string& nodeName, const Node& node) {
         Hash hash;
-        for (uint32_t vnode = 0; vnode < num_vnodes; vnode++) {
+        for (uint32_t vnode = 0; vnode < numVirtualNodes; vnode++) {
             hash = HashRing<Node>::getPartitionToken(nodeName, vnode);
-            node_ring[hash] = node;
+            nodeRing[hash] = node;
         }
         return std::move(hash);
     }
@@ -93,10 +95,15 @@ namespace commitmanager {
     template <class Node>
     void HashRing<Node>::removeNode(const crossbow::string& nodeName) {
         Hash hash;
-        for (size_t vnode = 0; vnode < num_vnodes; vnode++) {
+        for (size_t vnode = 0; vnode < numVirtualNodes; vnode++) {
             hash = HashRing<Node>::getPartitionToken(nodeName, vnode);
-            node_ring.erase(hash);
+            nodeRing.erase(hash);
         }
+    }
+
+    template <class Node>
+    void HashRing<Node>::clear() {
+        nodeRing.clear();
     }
 
     template <class Node>
@@ -107,12 +114,12 @@ namespace commitmanager {
 
     template <class Node>
     const Node* HashRing<Node>::getNode(Hash token) {
-        if (node_ring.empty()) {
+        if (nodeRing.empty()) {
             return nullptr;
         } else {
-            auto it = node_ring.lower_bound(token);
-            if (it == node_ring.end()) {
-                it = node_ring.begin();
+            auto it = nodeRing.lower_bound(token);
+            if (it == nodeRing.end()) {
+                it = nodeRing.begin();
             }
             return &it->second;
         }
@@ -123,10 +130,10 @@ namespace commitmanager {
         std::vector<Partition> ranges;
         
         Hash hash;
-        for (uint32_t vnode = 0; vnode < num_vnodes; vnode++) {
+        for (uint32_t vnode = 0; vnode < numVirtualNodes; vnode++) {
             hash = HashRing<Node>::getPartitionToken(nodeName, vnode);
 
-            auto rangeIterators = node_ring.equal_range(hash);
+            auto rangeIterators = nodeRing.equal_range(hash);
             Hash rangeStart = rangeIterators.first->first;
             Hash rangeEnd = rangeIterators.second->first;
 
