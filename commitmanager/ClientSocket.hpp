@@ -31,6 +31,7 @@
 
 #include <cstdint>
 #include <system_error>
+#include <vector>
 
 namespace tell {
 namespace commitmanager {
@@ -127,6 +128,13 @@ public:
     std::shared_ptr<CommitResponse> unregisterNode(
         crossbow::infinio::Fiber& fiber,
         crossbow::string host
+    );
+
+    std::shared_ptr<CommitResponse> transferOwnership(
+        crossbow::infinio::Fiber& fiber,
+        crossbow::string fromHost,
+        crossbow::string toHost,
+        std::vector<Partition> ranges
     );
 };
 

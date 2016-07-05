@@ -88,6 +88,10 @@ void ServerManager::onMessage(ServerSocket* con, crossbow::infinio::MessageId me
         handleUnregisterNode(con, messageId, message);
     } break;
 
+    case crossbow::to_underlying(WrappedResponse::TRANSFER_OWNERSHIP): {
+        handleTransferOwnership(con, messageId, message);
+    } break;
+
     default: {
         con->writeErrorResponse(messageId, error::unkown_request);
     } break;
@@ -190,6 +194,34 @@ void ServerManager::handleRegisterNode(ServerSocket *con, crossbow::infinio::Mes
  * @brief Updates the node directory with new status information from a node.
  */
 void ServerManager::handleUnregisterNode(ServerSocket *con, crossbow::infinio::MessageId messageId,
+                                             crossbow::buffer_reader &message) {
+    // Update cluster state
+    uint32_t hostSize = message.read<uint32_t>();
+    crossbow::string host(message.read(hostSize), hostSize);
+
+    for (auto it = mDirectory.begin(); it != mDirectory.end(); ++it) {
+        // LOG_INFO("Comparing host %1% to %2%, result = %3%", it->host, host, it->host == host);
+        if (it->host == host) {
+            LOG_INFO("Unregistering node: %1%", it->host);
+            mDirectory.erase(it);
+            break;
+        }
+    }
+
+    mNodeRing.removeNode(host);
+
+    // Write response
+    uint32_t messageLength = sizeof(uint8_t);
+    auto responseWriter = [](crossbow::buffer_writer& message, std::error_code& /* ec */) { 
+        message.write<uint8_t>(0x1u); 
+    };
+    con->writeResponse(messageId, ResponseType::COMMIT, messageLength, responseWriter);
+}
+
+/**
+ * @brief Registers a successful key-transfer in the commit-managers hash-ring.
+ */
+void ServerManager::handleTransferOwnership(ServerSocket *con, crossbow::infinio::MessageId messageId,
                                              crossbow::buffer_reader &message) {
     // Update cluster state
     uint32_t hostSize = message.read<uint32_t>();

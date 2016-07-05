@@ -43,7 +43,8 @@ enum class WrappedResponse : uint32_t {
     START = 0x1u,
     COMMIT,
     REGISTER_NODE,
-    UNREGISTER_NODE
+    UNREGISTER_NODE,
+    TRANSFER_OWNERSHIP
 };
 
 /**

@@ -74,20 +74,16 @@ private:
 
     ServerSocket* createConnection(crossbow::infinio::InfinibandSocket socket, const crossbow::string& data);
 
-    void onMessage(ServerSocket* con, crossbow::infinio::MessageId messageId, uint32_t messageType,
-            crossbow::buffer_reader& message);
+    void onMessage( ServerSocket* con,
+                    crossbow::infinio::MessageId messageId,
+                    uint32_t messageType,
+                    crossbow::buffer_reader& message );
 
-    void handleStartTransaction(ServerSocket* con, crossbow::infinio::MessageId messageId,
-            crossbow::buffer_reader& message);
-
-    void handleCommitTransaction(ServerSocket* con, crossbow::infinio::MessageId messageId,
-            crossbow::buffer_reader& message);
-
-    void handleRegisterNode(ServerSocket *con, crossbow::infinio::MessageId messageId,
-                                  crossbow::buffer_reader &message);
-
-    void handleUnregisterNode(ServerSocket *con, crossbow::infinio::MessageId messageId,
-                                  crossbow::buffer_reader &message);
+    void handleStartTransaction(ServerSocket* con, crossbow::infinio::MessageId messageId, crossbow::buffer_reader& message);
+    void handleCommitTransaction(ServerSocket* con, crossbow::infinio::MessageId messageId, crossbow::buffer_reader& message);
+    void handleRegisterNode(ServerSocket *con, crossbow::infinio::MessageId messageId, crossbow::buffer_reader &message);
+    void handleUnregisterNode(ServerSocket *con, crossbow::infinio::MessageId messageId, crossbow::buffer_reader &message);
+    void handleTransferOwnership(ServerSocket *con, crossbow::infinio::MessageId messageId, crossbow::buffer_reader &message);
 
     std::unique_ptr<crossbow::infinio::InfinibandProcessor> mProcessor;
 

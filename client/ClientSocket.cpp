@@ -111,15 +111,42 @@ std::shared_ptr<ClusterStateResponse> ClientSocket::registerNode(crossbow::infin
     return response;
 }
 
-std::shared_ptr<CommitResponse> ClientSocket::unregisterNode(
-    crossbow::infinio::Fiber &fiber, crossbow::string host) {
-
+std::shared_ptr<CommitResponse> ClientSocket::unregisterNode(crossbow::infinio::Fiber &fiber, crossbow::string host) {
     auto response = std::make_shared<CommitResponse>(fiber);
 
     uint32_t messageLength = sizeof(uint32_t) + host.size();
     auto requestWriter = [host] (crossbow::buffer_writer& message, std::error_code& /* ec */) {
         message.write<uint32_t>(host.size());
         message.write(host.data(), host.size());
+    };
+
+    sendRequest(response, WrappedResponse::UNREGISTER_NODE, messageLength, requestWriter);
+    return response;
+}
+
+std::shared_ptr<CommitResponse> ClientSocket::transferOwnership(crossbow::infinio::Fiber &fiber,
+                                                                crossbow::string fromHost,
+                                                                crossbow::string toHost,
+                                                                std::vector<Partition> ranges) {
+    auto response = std::make_shared<CommitResponse>(fiber);
+
+    uint32_t messageLength = 2*sizeof(uint32_t) + fromHost.size() + toHost.size() + sizeof(uint32_t);
+    for (auto const& range : ranges) {
+        messageLength += 2*sizeof(Hash);
+    }
+
+    auto requestWriter = [&fromHost, &toHost, &ranges](crossbow::buffer_writer& message, std::error_code& /* ec */) {
+        message.write<uint32_t>(fromHost.size());
+        message.write(fromHost.data(), fromHost.size());
+
+        message.write<uint32_t>(toHost.size());
+        message.write(toHost.data(), toHost.size());
+
+        message.write<uint32_t>(ranges.size());
+        for (auto const& range : ranges) {       
+            message.write<Hash>(range.start);
+            message.write<Hash>(range.end);
+        }
     };
 
     sendRequest(response, WrappedResponse::UNREGISTER_NODE, messageLength, requestWriter);
