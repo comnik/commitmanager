@@ -119,23 +119,16 @@ public:
 
     std::shared_ptr<CommitResponse> commitTransaction(crossbow::infinio::Fiber& fiber, uint64_t version);
 
-    std::shared_ptr<ClusterStateResponse> registerNode(
-        crossbow::infinio::Fiber& fiber,
-        crossbow::string host,
-        crossbow::string tag
-    );
+    std::shared_ptr<ClusterStateResponse> registerNode( crossbow::infinio::Fiber& fiber,
+                                                        crossbow::string host,
+                                                        crossbow::string tag );
 
-    std::shared_ptr<CommitResponse> unregisterNode(
-        crossbow::infinio::Fiber& fiber,
-        crossbow::string host
-    );
+    std::shared_ptr<CommitResponse> unregisterNode( crossbow::infinio::Fiber& fiber,
+                                                    crossbow::string host );
 
-    std::shared_ptr<CommitResponse> transferOwnership(
-        crossbow::infinio::Fiber& fiber,
-        crossbow::string fromHost,
-        crossbow::string toHost,
-        std::vector<Partition> ranges
-    );
+    std::shared_ptr<CommitResponse> transferOwnership(  crossbow::infinio::Fiber& fiber,
+                                                        crossbow::string fromHost,
+                                                        crossbow::string toHost );
 };
 
 } // namespace commitmanager

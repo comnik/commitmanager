@@ -35,6 +35,7 @@
 #include <crossbow/infinio/RpcServer.hpp>
 
 #include <memory>
+#include <unordered_map>
 
 namespace tell {
 namespace commitmanager {
@@ -91,8 +92,8 @@ private:
 
     CommitManager mCommitManager;
 
-    std::vector<struct DirectoryEntry> mDirectory;
-    HashRing<size_t> mNodeRing;
+    std::unordered_map<crossbow::string, std::unique_ptr<DirectoryEntry>> mDirectory;
+    HashRing<crossbow::string> mNodeRing;
 };
 
 } // namespace commitmanager

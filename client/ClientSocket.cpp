@@ -126,27 +126,17 @@ std::shared_ptr<CommitResponse> ClientSocket::unregisterNode(crossbow::infinio::
 
 std::shared_ptr<CommitResponse> ClientSocket::transferOwnership(crossbow::infinio::Fiber &fiber,
                                                                 crossbow::string fromHost,
-                                                                crossbow::string toHost,
-                                                                std::vector<Partition> ranges) {
+                                                                crossbow::string toHost) {
     auto response = std::make_shared<CommitResponse>(fiber);
 
-    uint32_t messageLength = 2*sizeof(uint32_t) + fromHost.size() + toHost.size() + sizeof(uint32_t);
-    for (auto const& range : ranges) {
-        messageLength += 2*sizeof(Hash);
-    }
-
-    auto requestWriter = [&fromHost, &toHost, &ranges](crossbow::buffer_writer& message, std::error_code& /* ec */) {
+    uint32_t messageLength = 2*sizeof(uint32_t) + fromHost.size() + toHost.size();
+    
+    auto requestWriter = [&fromHost, &toHost](crossbow::buffer_writer& message, std::error_code& /* ec */) {
         message.write<uint32_t>(fromHost.size());
         message.write(fromHost.data(), fromHost.size());
 
         message.write<uint32_t>(toHost.size());
         message.write(toHost.data(), toHost.size());
-
-        message.write<uint32_t>(ranges.size());
-        for (auto const& range : ranges) {       
-            message.write<Hash>(range.start);
-            message.write<Hash>(range.end);
-        }
     };
 
     sendRequest(response, WrappedResponse::UNREGISTER_NODE, messageLength, requestWriter);

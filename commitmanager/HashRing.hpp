@@ -54,6 +54,8 @@ namespace commitmanager {
             const Node* getNode(uint64_t tableId, uint64_t key);
             const Node* getNode(Hash token);
 
+            const bool isActive(const crossbow::string& nodeName);
+
             std::vector<Partition> getRanges(const crossbow::string& nodeName);
 
         private:
@@ -133,19 +135,38 @@ namespace commitmanager {
         for (uint32_t vnode = 0; vnode < numVirtualNodes; vnode++) {
             hash = HashRing<Node>::getPartitionToken(nodeName, vnode);
 
+            // The new vnode is inserted between two others.
+            // The one on the higher end of the range is the owner that
+            // has to be contacted for a key transfer.
+
             auto rangeIterators = nodeRing.equal_range(hash);
+            
+            crossbow::string owner = rangeIterators.second->second;
+            crossbow::string otherOwner = rangeIterators.first->second;
+            
             Hash rangeStart = rangeIterators.first->first;
             Hash rangeEnd = rangeIterators.second->first;
+
+            LOG_INFO("Range owned by %1% or %2%", owner, otherOwner);
 
             if (rangeStart > rangeEnd) {
                 LOG_INFO("range_start > range_end");
                 std::swap(rangeStart, rangeEnd);
+                std::swap(owner, otherOwner);
             }
 
-            ranges.emplace_back("localhost:7243", rangeStart, rangeEnd);
+            ranges.emplace_back(owner, rangeStart, rangeEnd);
         }
 
         return std::move(ranges);
+    }
+
+    template <class Node>
+    const bool HashRing<Node>::isActive(const crossbow::string& nodeName) {
+        Hash nodeToken = getPartitionToken(nodeName, 0);
+        auto search = nodeRing.find(nodeToken);
+
+        return search != nodeRing.end();
     }
 
 } // namespace store

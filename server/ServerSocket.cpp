@@ -140,31 +140,37 @@ void ServerManager::handleRegisterNode(ServerSocket *con, crossbow::infinio::Mes
                                              crossbow::buffer_reader &message) {
     uint64_t hostSize = message.read<uint32_t>();
     crossbow::string host(message.read(hostSize), hostSize);
+    
     uint64_t tagSize = message.read<uint32_t>();
     crossbow::string tag(message.read(tagSize), tagSize);
     
-    // LOG_INFO("Read host size %1%", hostSize);
-    // LOG_INFO("Read host %1%", host);
-    // LOG_INFO("Read tag size %1%", tagSize);
-    // LOG_INFO("Read tag %1%", tag);
-
-    mDirectory.emplace_back(host, tag);
-
-    size_t idx = mDirectory.size() - 1;
-    mNodeRing.insertNode(host, idx);
-
     std::vector<crossbow::string> matchingHosts;
-    for (auto const& node : mDirectory) {
-        if (node.tag == tag) {
-            LOG_INFO("Matched a host %1%", node.host);
-            matchingHosts.push_back(node.host);
+    for (const auto& nodeIt : mDirectory) {
+        if (mNodeRing.isActive(nodeIt.second->host) && nodeIt.second->tag == tag) {
+            LOG_INFO("Matched a host %1%", nodeIt.second->host);
+            matchingHosts.push_back(nodeIt.second->host);
         }
     }
 
     crossbow::string nodeInfo = boost::algorithm::join(matchingHosts, ";");
     LOG_INFO("Cluster info: %1%", nodeInfo);
 
+    // Register the node, but it will be marked as inactive for now
+    mDirectory[host] = std::move(std::unique_ptr<DirectoryEntry>(new DirectoryEntry(host, tag)));
+
+    // We don't really want to insert the node just yet, 
+    // in case the keys have to be transferred first. Should that be
+    // the case, then we also mark the node as inactive.
+    mNodeRing.insertNode(host, host);
     std::vector<Partition> ranges = mNodeRing.getRanges(host);
+
+    for (const auto& range : ranges) {
+        if (range.owner != host) {
+            // The new node is not the first owner of this range,
+            // therefore keys have to be transferred first.
+            mNodeRing.removeNode(host);
+        }
+    }
 
     // Write response
     uint32_t messageLength = sizeof(uint32_t) + nodeInfo.size() + sizeof(uint32_t);
@@ -193,21 +199,16 @@ void ServerManager::handleRegisterNode(ServerSocket *con, crossbow::infinio::Mes
 /**
  * @brief Updates the node directory with new status information from a node.
  */
-void ServerManager::handleUnregisterNode(ServerSocket *con, crossbow::infinio::MessageId messageId,
-                                             crossbow::buffer_reader &message) {
-    // Update cluster state
+void ServerManager::handleUnregisterNode(ServerSocket *con,
+                                         crossbow::infinio::MessageId messageId,
+                                         crossbow::buffer_reader &message) {
     uint32_t hostSize = message.read<uint32_t>();
     crossbow::string host(message.read(hostSize), hostSize);
 
-    for (auto it = mDirectory.begin(); it != mDirectory.end(); ++it) {
-        // LOG_INFO("Comparing host %1% to %2%, result = %3%", it->host, host, it->host == host);
-        if (it->host == host) {
-            LOG_INFO("Unregistering node: %1%", it->host);
-            mDirectory.erase(it);
-            break;
-        }
-    }
+    // Remove the node from the node directory
+    mDirectory.erase(host);
 
+    // Remove the node from the hash ring
     mNodeRing.removeNode(host);
 
     // Write response
@@ -221,23 +222,18 @@ void ServerManager::handleUnregisterNode(ServerSocket *con, crossbow::infinio::M
 /**
  * @brief Registers a successful key-transfer in the commit-managers hash-ring.
  */
-void ServerManager::handleTransferOwnership(ServerSocket *con, crossbow::infinio::MessageId messageId,
-                                             crossbow::buffer_reader &message) {
-    // Update cluster state
-    uint32_t hostSize = message.read<uint32_t>();
-    crossbow::string host(message.read(hostSize), hostSize);
+void ServerManager::handleTransferOwnership(ServerSocket *con,
+                                            crossbow::infinio::MessageId messageId,
+                                            crossbow::buffer_reader &message) {
+    uint32_t fromHostSize = message.read<uint32_t>();
+    crossbow::string fromHost(message.read(fromHostSize), fromHostSize);
 
-    for (auto it = mDirectory.begin(); it != mDirectory.end(); ++it) {
-        // LOG_INFO("Comparing host %1% to %2%, result = %3%", it->host, host, it->host == host);
-        if (it->host == host) {
-            LOG_INFO("Unregistering node: %1%", it->host);
-            mDirectory.erase(it);
-            break;
-        }
-    }
+    uint32_t toHostSize = message.read<uint32_t>();
+    crossbow::string toHost(message.read(toHostSize), toHostSize);
 
-    mNodeRing.removeNode(host);
-
+    // Now we can mark the new node as active for the transferred ranges
+    mNodeRing.insertNode(toHost, toHost);
+    
     // Write response
     uint32_t messageLength = sizeof(uint8_t);
     auto responseWriter = [](crossbow::buffer_writer& message, std::error_code& /* ec */) { 
