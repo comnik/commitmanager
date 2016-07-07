@@ -77,7 +77,7 @@ int main(int argc, const char** argv) {
         LOG_INFO("Received storage node info: %1%", clusterMeta->hosts);
         
         LOG_INFO("Responsible for ranges:");
-        for (auto const& range : clusterMeta->ranges) {
+        for (const auto& range : clusterMeta->ranges) {
             LOG_INFO("\t[%1%, %2%] owned by %3%", (uint64_t) range.start, (uint64_t) range.end, range.owner);
         }
 

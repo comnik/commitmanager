@@ -88,7 +88,7 @@ namespace commitmanager {
     Hash HashRing<Node>::insertNode(const crossbow::string& nodeName, const Node& node) {
         Hash hash;
         for (uint32_t vnode = 0; vnode < numVirtualNodes; vnode++) {
-            hash = HashRing<Node>::getPartitionToken(nodeName, vnode);
+            hash = getPartitionToken(nodeName, vnode);
             nodeRing[hash] = node;
         }
         return std::move(hash);
@@ -98,7 +98,7 @@ namespace commitmanager {
     void HashRing<Node>::removeNode(const crossbow::string& nodeName) {
         Hash hash;
         for (size_t vnode = 0; vnode < numVirtualNodes; vnode++) {
-            hash = HashRing<Node>::getPartitionToken(nodeName, vnode);
+            hash = getPartitionToken(nodeName, vnode);
             nodeRing.erase(hash);
         }
     }
@@ -110,7 +110,7 @@ namespace commitmanager {
 
     template <class Node>
     const Node* HashRing<Node>::getNode(uint64_t tableId, uint64_t key) {
-        Hash token = HashRing<Node>::getPartitionToken(tableId, key);
+        Hash token = getPartitionToken(tableId, key);
         return getNode(token);
     }
 
@@ -133,7 +133,7 @@ namespace commitmanager {
         
         Hash hash;
         for (uint32_t vnode = 0; vnode < numVirtualNodes; vnode++) {
-            hash = HashRing<Node>::getPartitionToken(nodeName, vnode);
+            hash = getPartitionToken(nodeName, vnode);
 
             // The new vnode is inserted between two others.
             // The one on the higher end of the range is the owner that
@@ -146,8 +146,6 @@ namespace commitmanager {
             
             Hash rangeStart = rangeIterators.first->first;
             Hash rangeEnd = rangeIterators.second->first;
-
-            LOG_INFO("Range owned by %1% or %2%", owner, otherOwner);
 
             if (rangeStart > rangeEnd) {
                 LOG_INFO("range_start > range_end");

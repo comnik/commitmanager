@@ -185,7 +185,7 @@ void ServerManager::handleRegisterNode(ServerSocket *con, crossbow::infinio::Mes
 
         // Write ranges
         message.write<uint32_t>(ranges.size()); // number of ranges
-        for (auto const& range : ranges) {            
+        for (const auto& range : ranges) {            
             message.write<Hash>(range.start);
             message.write<Hash>(range.end);
 
