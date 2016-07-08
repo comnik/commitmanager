@@ -78,8 +78,18 @@ namespace commitmanager {
 
     template <class Node>
     crossbow::string HashRing<Node>::writeHash(Hash hash) {
-        uint64_t* value = (uint64_t*) &hash;
-        return crossbow::to_string(value[1]) + crossbow::to_string(value[0]);
+        Hash tmp = hash;
+        char buffer[128];
+        char* d = std::end( buffer );
+        
+        do {
+            --d;
+            *d = "0123456789"[tmp % 10];
+            tmp /= 10;
+        } while (tmp != 0);
+        
+        int len = std::end( buffer ) - d;
+        return crossbow::string(d, len);
     }
 
     /**
