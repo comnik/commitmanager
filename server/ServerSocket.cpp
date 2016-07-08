@@ -25,6 +25,7 @@
 
 #include <commitmanager/ErrorCode.hpp>
 #include <commitmanager/MessageTypes.hpp>
+#include <commitmanager/HashRing.hpp>
 
 #include <boost/algorithm/string/join.hpp>
 

@@ -23,6 +23,8 @@
 #pragma once
 
 #include <map>
+#include <iterator>
+#include <limits>
 
 #include <crossbow/string.hpp>
 #include <crossbow/logger.hpp>
@@ -41,7 +43,13 @@ namespace commitmanager {
         public:
             HashRing(size_t numVirtualNodes) 
                 : numVirtualNodes(numVirtualNodes) {}
+
+            static crossbow::string writeHash(Hash hash);
+
+            static bool isSubPartition(Hash parentStart, Hash parentEnd, Hash childStart, Hash childEnd); 
             
+            static bool inPartition(Hash token, Hash rangeStart, Hash rangeEnd); 
+
             static Hash getPartitionToken(uint64_t tableId, uint64_t key);
             static Hash getPartitionToken(const crossbow::string& nodeName, uint32_t vnode);
 
@@ -58,6 +66,8 @@ namespace commitmanager {
 
             std::vector<Partition> getRanges(const crossbow::string& nodeName);
 
+            const bool isEmpty() { return nodeRing.empty(); }
+
         private:
             // Murmur seed
             static const uint32_t SEED = 0;
@@ -65,6 +75,28 @@ namespace commitmanager {
             const size_t numVirtualNodes;
             std::map<Hash, Node> nodeRing;
     };
+
+    template <class Node>
+    crossbow::string HashRing<Node>::writeHash(Hash hash) {
+        uint64_t* value = (uint64_t*) &hash;
+        return crossbow::to_string(value[1]) + crossbow::to_string(value[0]);
+    }
+
+    /**
+     * Checks wether a partition is contained inside another.
+     */
+    template <class Node>
+    bool HashRing<Node>::isSubPartition(Hash parentStart, Hash parentEnd, Hash childStart, Hash childEnd) {
+        return (childStart >= parentStart && childEnd <= parentEnd);
+    }
+
+    /**
+     * Checks wether a token is contained in the given range.
+     */
+    template <class Node>
+    bool HashRing<Node>::inPartition(Hash token, Hash rangeStart, Hash rangeEnd) {
+        return (token >= rangeStart && token <= rangeEnd);
+    }
 
     template <class Node>
     Hash HashRing<Node>::getPartitionToken(uint64_t tableId, uint64_t key) {
