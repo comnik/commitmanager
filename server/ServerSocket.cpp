@@ -153,7 +153,7 @@ void ServerManager::handleRegisterNode(ServerSocket *con, crossbow::infinio::Mes
     }
 
     crossbow::string nodeInfo = boost::algorithm::join(matchingHosts, ";");
-    LOG_INFO("Cluster info: %1%", nodeInfo);
+    LOG_DEBUG("Cluster info: %1%", nodeInfo);
 
     // Register the node
     mDirectory[host] = std::move(std::unique_ptr<DirectoryEntry>(new DirectoryEntry(host, tag)));
@@ -168,9 +168,9 @@ void ServerManager::handleRegisterNode(ServerSocket *con, crossbow::infinio::Mes
     std::vector<Partition> ranges = mNodeRing.getRanges(host);
 
     for (const auto& nodeIt : mDirectory) {
-        LOG_INFO("Node %1% ranges:", nodeIt.second->host);
+        LOG_DEBUG("Node %1% ranges:", nodeIt.second->host);
         for (const auto& range : mNodeRing.getRanges(nodeIt.second->host)) {
-            LOG_INFO("\t[%1%, %2%]", HashRing<crossbow::string>::writeHash(range.start), HashRing<crossbow::string>::writeHash(range.end));
+            LOG_DEBUG("\t[%1%, %2%]", HashRing<crossbow::string>::writeHash(range.start), HashRing<crossbow::string>::writeHash(range.end));
         }
     }
 

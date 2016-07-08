@@ -181,13 +181,13 @@ namespace commitmanager {
 
             if (hash <= nodeRing.begin()->first) {
                 // Case 0: first node encountered in clockwise direction
-                LOG_INFO("Case 0");
+                LOG_DEBUG("Case 0");
                 ranges.emplace_back(nodeRing.begin()->second, nodeRing.rbegin()->first + 1, std::numeric_limits<Hash>::max()-1);
             }
             
             if (lowerBound == nodeRing.end()) {
                 // Case 1: lowerBound wraps around
-                LOG_INFO("Case 1");
+                LOG_DEBUG("Case 1");
                 auto neighbour = std::prev(lowerBound);
                 crossbow::string owner = nodeRing.begin()->second;
 
@@ -196,14 +196,14 @@ namespace commitmanager {
             
             if (lowerBound == nodeRing.begin()) {
                 // Case 2: prev(lowerBound) wraps around
-                LOG_INFO("Case 2");
+                LOG_DEBUG("Case 2");
                 crossbow::string owner = nodeRing.begin()->second;
                 ranges.emplace_back(owner, (Hash) 0, hash);
             }
 
             if (lowerBound != nodeRing.begin() && lowerBound != nodeRing.end()) {
                 // Case 3: none wrap around
-                LOG_INFO("Case 3");
+                LOG_DEBUG("Case 3");
                 crossbow::string owner = lowerBound->second;
                 auto neighbour = std::prev(lowerBound);
 
