@@ -177,26 +177,36 @@ namespace commitmanager {
         for (uint32_t vnode = 0; vnode < numVirtualNodes; vnode++) {
             hash = getPartitionToken(nodeName, vnode);
 
-            crossbow::string owner;
-            
             auto lowerBound = nodeRing.lower_bound(hash);
+
+            if (hash <= nodeRing.begin()->first) {
+                // Case 0: first node encountered in clockwise direction
+                LOG_INFO("Case 0");
+                ranges.emplace_back(nodeRing.begin()->second, nodeRing.rbegin()->first + 1, std::numeric_limits<Hash>::max()-1);
+            }
+            
             if (lowerBound == nodeRing.end()) {
-                lowerBound = nodeRing.begin();
-                owner = nodeName;
-            } else {
-                owner = lowerBound->second;
+                // Case 1: lowerBound wraps around
+                LOG_INFO("Case 1");
+                auto neighbour = std::prev(lowerBound);
+                crossbow::string owner = nodeRing.begin()->second;
+
+                ranges.emplace_back(owner, neighbour->first + 1, hash);
+            } 
+            
+            if (lowerBound == nodeRing.begin()) {
+                // Case 2: prev(lowerBound) wraps around
+                LOG_INFO("Case 2");
+                crossbow::string owner = nodeRing.begin()->second;
+                ranges.emplace_back(owner, (Hash) 0, hash);
             }
 
-            if (lowerBound == nodeRing.begin()) {
-                // Neighbour wraps around.
-                auto neighbour = nodeRing.rbegin();
-
-                // This is now a special case as we have to assign two regions.
-                ranges.emplace_back(owner, (Hash) 0, hash);
-                ranges.emplace_back(owner, neighbour->first + 1, std::numeric_limits<Hash>::max()-1);
-            } else {
-                // There is a regular neighbour
+            if (lowerBound != nodeRing.begin() && lowerBound != nodeRing.end()) {
+                // Case 3: none wrap around
+                LOG_INFO("Case 3");
+                crossbow::string owner = lowerBound->second;
                 auto neighbour = std::prev(lowerBound);
+
                 ranges.emplace_back(owner, neighbour->first + 1, hash);
             }
         }

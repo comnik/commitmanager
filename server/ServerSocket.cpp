@@ -148,7 +148,6 @@ void ServerManager::handleRegisterNode(ServerSocket *con, crossbow::infinio::Mes
     std::vector<crossbow::string> matchingHosts;
     for (const auto& nodeIt : mDirectory) {
         if (mNodeRing.isActive(nodeIt.second->host) && nodeIt.second->tag == tag) {
-            LOG_INFO("Matched a host %1%", nodeIt.second->host);
             matchingHosts.push_back(nodeIt.second->host);
         }
     }
