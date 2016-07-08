@@ -167,25 +167,28 @@ namespace commitmanager {
         for (uint32_t vnode = 0; vnode < numVirtualNodes; vnode++) {
             hash = getPartitionToken(nodeName, vnode);
 
-            // The new vnode is inserted between two others.
-            // The one on the higher end of the range is the owner that
-            // has to be contacted for a key transfer.
-
-            auto rangeIterators = nodeRing.equal_range(hash);
+            crossbow::string owner;
             
-            crossbow::string owner = rangeIterators.second->second;
-            crossbow::string otherOwner = rangeIterators.first->second;
-            
-            Hash rangeStart = rangeIterators.first->first;
-            Hash rangeEnd = rangeIterators.second->first;
-
-            if (rangeStart > rangeEnd) {
-                LOG_INFO("range_start > range_end");
-                std::swap(rangeStart, rangeEnd);
-                std::swap(owner, otherOwner);
+            auto lowerBound = nodeRing.lower_bound(hash);
+            if (lowerBound == nodeRing.end()) {
+                lowerBound = nodeRing.begin();
+                owner = nodeName;
+            } else {
+                owner = lowerBound->second;
             }
 
-            ranges.emplace_back(owner, rangeStart, rangeEnd);
+            if (lowerBound == nodeRing.begin()) {
+                // Neighbour wraps around.
+                auto neighbour = nodeRing.rbegin();
+
+                // This is now a special case as we have to assign two regions.
+                ranges.emplace_back(owner, (Hash) 0, hash);
+                ranges.emplace_back(owner, neighbour->first + 1, std::numeric_limits<Hash>::max()-1);
+            } else {
+                // There is a regular neighbour
+                auto neighbour = std::prev(lowerBound);
+                ranges.emplace_back(owner, neighbour->first + 1, hash);
+            }
         }
 
         return std::move(ranges);

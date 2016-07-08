@@ -156,20 +156,22 @@ void ServerManager::handleRegisterNode(ServerSocket *con, crossbow::infinio::Mes
     crossbow::string nodeInfo = boost::algorithm::join(matchingHosts, ";");
     LOG_INFO("Cluster info: %1%", nodeInfo);
 
-    // Register the node, but it will be marked as inactive for now
+    // Register the node
     mDirectory[host] = std::move(std::unique_ptr<DirectoryEntry>(new DirectoryEntry(host, tag)));
 
-    // We don't really want to insert the node just yet, 
-    // in case the keys have to be transferred first. Should that be
-    // the case, then we also mark the node as inactive.
-    mNodeRing.insertNode(host, host);
+    // We only insert the node at this point, if it is the first node to join.
+    // Otherwise keys have to be transferred first.
+    
+    if (mNodeRing.isEmpty()) {
+        mNodeRing.insertNode(host, host);        
+    }
+    
     std::vector<Partition> ranges = mNodeRing.getRanges(host);
 
-    for (const auto& range : ranges) {
-        if (range.owner != host) {
-            // The new node is not the first owner of this range,
-            // therefore keys have to be transferred first.
-            mNodeRing.removeNode(host);
+    for (const auto& nodeIt : mDirectory) {
+        LOG_INFO("Node %1% ranges:", nodeIt.second->host);
+        for (const auto& range : mNodeRing.getRanges(nodeIt.second->host)) {
+            LOG_INFO("\t[%1%, %2%]", HashRing<crossbow::string>::writeHash(range.start), HashRing<crossbow::string>::writeHash(range.end));
         }
     }
 
