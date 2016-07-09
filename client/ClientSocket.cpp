@@ -30,7 +30,19 @@ namespace tell {
 namespace commitmanager {
 
 void StartResponse::processResponse(crossbow::buffer_reader& message) {
-    setResult(SnapshotDescriptor::deserialize(message));
+    std::unique_ptr<ClusterState> clusterState(new ClusterState);
+
+    clusterState->snapshot = std::move(SnapshotDescriptor::deserialize(message));
+
+    clusterState->numPeers = 0; // will be set later when parsing the peers string
+
+    uint32_t peersSize = message.read<uint32_t>();
+    clusterState->peers = crossbow::string(message.read(peersSize), peersSize);
+    
+    uint32_t bootstrappingPeersSize = message.read<uint32_t>();
+    clusterState->bootstrappingPeers = crossbow::string(message.read(bootstrappingPeersSize), bootstrappingPeersSize);
+
+    setResult(std::move(clusterState));
 }
 
 void CommitResponse::processResponse(crossbow::buffer_reader& message) {

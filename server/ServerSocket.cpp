@@ -114,11 +114,32 @@ void ServerManager::handleStartTransaction(ServerSocket* con, crossbow::infinio:
         return;
     }
 
-    auto messageLength = mCommitManager.serializedLength();
-    con->writeResponse(messageId, ResponseType::START, messageLength, [this]
-            (crossbow::buffer_writer& message, std::error_code& /* ec */) {
-        mCommitManager.serializeSnapshot(message);
-    });
+    std::vector<crossbow::string> matchingHosts;
+    std::vector<crossbow::string> bootstrapHosts;
+    for (const auto& nodeIt : mDirectory) {
+        if (mNodeRing.isActive(nodeIt.second->host) && nodeIt.second->tag == "STORAGE") {
+            matchingHosts.push_back(nodeIt.second->host);
+        }
+    }
+
+    crossbow::string nodeInfo = boost::algorithm::join(matchingHosts, ";");
+    crossbow::string bootstrapInfo = boost::algorithm::join(bootstrapHosts, ";");
+
+    auto messageLength = mCommitManager.serializedLength() + 2*sizeof(uint32_t) + nodeInfo.size() + bootstrapInfo.size();
+    
+    con->writeResponse(messageId, ResponseType::START, messageLength, 
+        [this, nodeInfo, bootstrapInfo] (crossbow::buffer_writer& message, std::error_code& /* ec */) {
+            mCommitManager.serializeSnapshot(message);
+
+            // Write peer addresses
+            message.write<uint32_t>(nodeInfo.size());
+            message.write(nodeInfo.data(), nodeInfo.size());
+
+            // Write addresses of bootstrapping peers
+            message.write<uint32_t>(bootstrapInfo.size());
+            message.write(bootstrapInfo.data(), bootstrapInfo.size()); 
+        }
+    );
 }
 
 void ServerManager::handleCommitTransaction(ServerSocket* con, crossbow::infinio::MessageId messageId,

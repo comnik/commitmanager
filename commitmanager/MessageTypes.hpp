@@ -28,6 +28,8 @@
 
 #include <crossbow/string.hpp>
 
+#include <commitmanager/SnapshotDescriptor.hpp>
+
 namespace tell {
 namespace commitmanager {
 
@@ -76,6 +78,13 @@ struct ClusterMeta {
     crossbow::string hosts;
     // Ranges the recipient is responsible for
     std::vector<Partition> ranges;
+};
+
+struct ClusterState {
+    size_t numPeers;
+    crossbow::string peers;
+    crossbow::string bootstrappingPeers;
+    std::unique_ptr<SnapshotDescriptor> snapshot;
 };
 
 } // namespace commitmanager

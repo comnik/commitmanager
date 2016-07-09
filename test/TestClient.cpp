@@ -108,12 +108,12 @@ int main(int argc, const char** argv) {
             LOG_INFO("Error while starting transaction [error = %1% %2%]", ec, ec.message());
             return;
         }
-        auto snapshot = startResponse->get();
-        LOG_INFO("Started transaction [snapshot = %1%]", *snapshot);
+        auto clusterState = startResponse->get();
+        LOG_INFO("Started transaction [snapshot = %1%]", *clusterState->snapshot);
 
 
         LOG_INFO("Committing transaction");
-        auto commitResponse = client.commitTransaction(fiber, snapshot->version());
+        auto commitResponse = client.commitTransaction(fiber, clusterState->snapshot->version());
         if (!commitResponse->waitForResult()) {
             auto& ec = commitResponse->error();
             LOG_INFO("Error while committing transaction [error = %1% %2%]", ec, ec.message());
