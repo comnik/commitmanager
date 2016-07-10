@@ -119,6 +119,10 @@ void ServerManager::handleStartTransaction(ServerSocket* con, crossbow::infinio:
     for (const auto& nodeIt : mDirectory) {
         if (mNodeRing.isActive(nodeIt.second->host) && nodeIt.second->tag == "STORAGE") {
             matchingHosts.push_back(nodeIt.second->host);
+
+            if (nodeIt.second->isBootstrapping) {
+                bootstrapHosts.push_back(nodeIt.second->host);
+            }
         }
     }
 

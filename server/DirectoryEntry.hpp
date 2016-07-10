@@ -35,10 +35,12 @@ namespace tell {
         struct DirectoryEntry {
             crossbow::string host;
             crossbow::string tag;
+            bool isBootstrapping;
 
             DirectoryEntry(crossbow::string h, crossbow::string t) :
                 host(h),
-                tag(t)
+                tag(t),
+                isBootstrapping(false)
                 {}
         };
 
