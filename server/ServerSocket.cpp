@@ -183,14 +183,15 @@ void ServerManager::handleRegisterNode(ServerSocket *con, crossbow::infinio::Mes
     // Register the node
     mDirectory[host] = std::move(std::unique_ptr<DirectoryEntry>(new DirectoryEntry(host, tag)));
 
-    // We only insert the node at this point, if it is the first node to join.
-    // Otherwise keys have to be transferred first.
-    
     if (mNodeRing.isEmpty()) {
+        // Special case for the very first node: It has to be inserted
+        // before calculating ranges, so pointers don't wrap around in the ring.
         mNodeRing.insertNode(host, host);        
     }
     
     std::vector<Partition> ranges = mNodeRing.getRanges(host);
+
+    mNodeRing.insertNode(host, host);
 
     for (const auto& nodeIt : mDirectory) {
         LOG_DEBUG("Node %1% ranges:", nodeIt.second->host);
