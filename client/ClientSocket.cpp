@@ -33,7 +33,7 @@ void StartResponse::processResponse(crossbow::buffer_reader& message) {
     std::unique_ptr<ClusterState> clusterState(new ClusterState);
 
     clusterState->snapshot = std::move(SnapshotDescriptor::deserialize(message));
-
+    clusterState->directoryVersion = message.read<uint64_t>();
     clusterState->numPeers = 0; // will be set later when parsing the peers string
 
     uint32_t peersSize = message.read<uint32_t>();
@@ -106,15 +106,19 @@ std::shared_ptr<CommitResponse> ClientSocket::commitTransaction(crossbow::infini
     return response;
 }
 
-std::shared_ptr<ClusterStateResponse> ClientSocket::registerNode(crossbow::infinio::Fiber &fiber,
-                                                                     crossbow::string host,
-                                                                     crossbow::string tag) {
+std::shared_ptr<ClusterStateResponse> ClientSocket::registerNode(crossbow::infinio::Fiber& fiber,
+                                                                 const SnapshotDescriptor& snapshot,
+                                                                 crossbow::string host,
+                                                                 crossbow::string tag) {
     auto response = std::make_shared<ClusterStateResponse>(fiber);
 
-    uint32_t messageLength = 2 * sizeof(uint32_t) + host.size() + tag.size();
-    auto requestWriter = [host, tag] (crossbow::buffer_writer& message, std::error_code& /* ec */) {
+    uint32_t messageLength = sizeof(uint64_t) + 2*sizeof(uint32_t) + host.size() + tag.size();
+    auto requestWriter = [&snapshot, host, tag] (crossbow::buffer_writer& message, std::error_code& /* ec */) {
+        message.write<uint64_t>(snapshot.version());
+
         message.write<uint32_t>(host.size());
         message.write(host.data(), host.size());
+
         message.write<uint32_t>(tag.size());
         message.write(tag.data(), tag.size());
     };

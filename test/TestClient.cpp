@@ -66,8 +66,26 @@ int main(int argc, const char** argv) {
     client.connect(crossbow::infinio::Endpoint(crossbow::infinio::Endpoint::ipv4(), commitManagerHost));
 
     processor->executeFiber([&client] (crossbow::infinio::Fiber& fiber) {
+        crossbow::string token = "somenode:8080";
+        crossbow::string tag = "STORAGE";
+
+        LOG_INFO("Starting transaction");
+        auto startResponse = client.startTransaction(fiber, false);
+        if (!startResponse->waitForResult()) {
+            auto& ec = startResponse->error();
+            LOG_INFO("Error while starting transaction [error = %1% %2%]", ec, ec.message());
+            return;
+        }
+        auto clusterState = startResponse->get();
+        LOG_INFO("Started transaction [snapshot = %1%]", *clusterState->snapshot);
+
         LOG_INFO("Registering with the node directory");
-        auto registerResponse = client.registerNode(fiber, "somenode:8080", "STORAGE");
+        auto registerResponse = client.registerNode(
+            fiber, 
+            *clusterState->snapshot,
+            token, 
+            tag
+        );
         if (!registerResponse->waitForResult()) {
             auto& ec = registerResponse->error();
             LOG_INFO("Error while receiving cluster information [error = %1% %2%]", ec, ec.message());
@@ -81,36 +99,25 @@ int main(int argc, const char** argv) {
             LOG_INFO("\t[%1%, %2%] owned by %3%", (uint64_t) range.start, (uint64_t) range.end, range.owner);
         }
 
-        LOG_INFO("Unregistering with the node directory");
-        auto unregisterResponse = client.unregisterNode(fiber, "somenode:8080");
-        if (!unregisterResponse->waitForResult()) {
-            auto& ec = unregisterResponse->error();
-            LOG_INFO("Error while reading cluster information [error = %1% %2%]", ec, ec.message());
-            return;
-        }
-        auto unregisterSucceeded = unregisterResponse->get();
-        LOG_INFO("Unregistering succeeded? %1%", unregisterSucceeded);
+        // LOG_INFO("Unregistering with the node directory");
+        // auto unregisterResponse = client.unregisterNode(fiber, token);
+        // if (!unregisterResponse->waitForResult()) {
+        //     auto& ec = unregisterResponse->error();
+        //     LOG_INFO("Error while reading cluster information [error = %1% %2%]", ec, ec.message());
+        //     return;
+        // }
+        // auto unregisterSucceeded = unregisterResponse->get();
+        // LOG_INFO("Unregistering succeeded? %1%", unregisterSucceeded);
 
-        LOG_INFO("Re-registering with the node directory");
-        auto reRegisterResponse = client.registerNode(fiber, "somenode:8080", "STORAGE");
-        if (!reRegisterResponse->waitForResult()) {
-            auto& ec = reRegisterResponse->error();
-            LOG_INFO("Error while receiving cluster information [error = %1% %2%]", ec, ec.message());
-            return;
-        }
-        auto newClusterMeta = reRegisterResponse->get();
-        LOG_INFO("Received storage node info: %1%", newClusterMeta->hosts);
-
-        LOG_INFO("Starting transaction");
-        auto startResponse = client.startTransaction(fiber, false);
-        if (!startResponse->waitForResult()) {
-            auto& ec = startResponse->error();
-            LOG_INFO("Error while starting transaction [error = %1% %2%]", ec, ec.message());
-            return;
-        }
-        auto clusterState = startResponse->get();
-        LOG_INFO("Started transaction [snapshot = %1%]", *clusterState->snapshot);
-
+        // LOG_INFO("Re-registering with the node directory");
+        // auto reRegisterResponse = client.registerNode(fiber, token, tag);
+        // if (!reRegisterResponse->waitForResult()) {
+        //     auto& ec = reRegisterResponse->error();
+        //     LOG_INFO("Error while receiving cluster information [error = %1% %2%]", ec, ec.message());
+        //     return;
+        // }
+        // auto newClusterMeta = reRegisterResponse->get();
+        // LOG_INFO("Received storage node info: %1%", newClusterMeta->hosts);
 
         LOG_INFO("Committing transaction");
         auto commitResponse = client.commitTransaction(fiber, clusterState->snapshot->version());

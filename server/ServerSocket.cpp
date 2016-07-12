@@ -46,6 +46,7 @@ ServerManager::ServerManager(crossbow::infinio::InfinibandService& service, cons
         : Base(service, config.port),
           mProcessor(service.createProcessor()),
           mMaxBatchSize(config.maxBatchSize),
+          mDirectoryVersion(0),
           mNodeRing(1) {} // @TODO
 
 ServerSocket* ServerManager::createConnection(crossbow::infinio::InfinibandSocket socket,
@@ -106,34 +107,26 @@ void ServerManager::onMessage(ServerSocket* con, crossbow::infinio::MessageId me
 #endif
 }
 
-void ServerManager::handleStartTransaction(ServerSocket* con, crossbow::infinio::MessageId messageId,
-        crossbow::buffer_reader& message) {
+void ServerManager::handleStartTransaction(ServerSocket* con, 
+                                           crossbow::infinio::MessageId messageId, 
+                                           crossbow::buffer_reader& message) {
     auto readonly = (message.read<uint8_t>() != 0x0u);
     if (!mCommitManager.startTransaction(readonly)) {
         con->writeErrorResponse(messageId, error::transaction_limit_reached);
         return;
     }
 
-    std::vector<crossbow::string> matchingHosts;
-    std::vector<crossbow::string> bootstrapHosts;
-    for (const auto& nodeIt : mDirectory) {
-        if (mNodeRing.isActive(nodeIt.second->host) && nodeIt.second->tag == "STORAGE") {
-            matchingHosts.push_back(nodeIt.second->host);
+    crossbow::string nodeInfo = boost::algorithm::join(getMatchingHosts("STORAGE"), ";");
+    crossbow::string bootstrapInfo = boost::algorithm::join(getBootstrappingHosts("STORAGE"), ";");
 
-            if (nodeIt.second->isBootstrapping) {
-                bootstrapHosts.push_back(nodeIt.second->host);
-            }
-        }
-    }
-
-    crossbow::string nodeInfo = boost::algorithm::join(matchingHosts, ";");
-    crossbow::string bootstrapInfo = boost::algorithm::join(bootstrapHosts, ";");
-
-    auto messageLength = mCommitManager.serializedLength() + 2*sizeof(uint32_t) + nodeInfo.size() + bootstrapInfo.size();
+    auto messageLength = mCommitManager.serializedLength() + sizeof(uint64_t) + 2*sizeof(uint32_t) + nodeInfo.size() + bootstrapInfo.size();
     
     con->writeResponse(messageId, ResponseType::START, messageLength, 
         [this, nodeInfo, bootstrapInfo] (crossbow::buffer_writer& message, std::error_code& /* ec */) {
             mCommitManager.serializeSnapshot(message);
+
+            // Write most recent directory version
+            message.write<uint64_t>(mDirectoryVersion);
 
             // Write peer addresses
             message.write<uint32_t>(nodeInfo.size());
@@ -162,25 +155,26 @@ void ServerManager::handleCommitTransaction(ServerSocket* con, crossbow::infinio
 /**
  * @brief Updates the node directory with new status information from a node.
  */
-void ServerManager::handleRegisterNode(ServerSocket *con, crossbow::infinio::MessageId messageId,
-                                             crossbow::buffer_reader &message) {
-    uint64_t hostSize = message.read<uint32_t>();
+void ServerManager::handleRegisterNode(ServerSocket *con, 
+                                       crossbow::infinio::MessageId messageId, 
+                                       crossbow::buffer_reader &message) {
+    uint64_t version = message.read<uint64_t>();
+
+    uint32_t hostSize = message.read<uint32_t>();
     crossbow::string host(message.read(hostSize), hostSize);
     
-    uint64_t tagSize = message.read<uint32_t>();
+    uint32_t tagSize = message.read<uint32_t>();
     crossbow::string tag(message.read(tagSize), tagSize);
     
-    std::vector<crossbow::string> matchingHosts;
-    for (const auto& nodeIt : mDirectory) {
-        if (mNodeRing.isActive(nodeIt.second->host) && nodeIt.second->tag == tag) {
-            matchingHosts.push_back(nodeIt.second->host);
-        }
-    }
-
-    crossbow::string nodeInfo = boost::algorithm::join(matchingHosts, ";");
-    LOG_DEBUG("Cluster info: %1%", nodeInfo);
+    // Get directory info
+    crossbow::string nodeInfo = boost::algorithm::join(getMatchingHosts(tag), ";");
 
     // Register the node
+    LOG_INFO("Registering node @ %1% (last was %2%)", version, mDirectoryVersion);
+    if (version > mDirectoryVersion) {
+        mDirectoryVersion = version;
+    }
+
     mDirectory[host] = std::move(std::unique_ptr<DirectoryEntry>(new DirectoryEntry(host, tag)));
 
     if (mNodeRing.isEmpty()) {
@@ -193,13 +187,6 @@ void ServerManager::handleRegisterNode(ServerSocket *con, crossbow::infinio::Mes
     std::vector<Partition> ranges = mNodeRing.getRanges(host);
 
     mNodeRing.insertNode(host, host);
-
-    for (const auto& nodeIt : mDirectory) {
-        LOG_DEBUG("Node %1% ranges:", nodeIt.second->host);
-        for (const auto& range : mNodeRing.getRanges(nodeIt.second->host)) {
-            LOG_DEBUG("\t[%1%, %2%]", HashRing<crossbow::string>::writeHash(range.start), HashRing<crossbow::string>::writeHash(range.end));
-        }
-    }
 
     // Write response
     uint32_t messageLength = sizeof(uint32_t) + nodeInfo.size() + sizeof(uint32_t);
@@ -269,6 +256,26 @@ void ServerManager::handleTransferOwnership(ServerSocket *con,
         message.write<uint8_t>(0x1u); 
     };
     con->writeResponse(messageId, ResponseType::COMMIT, messageLength, responseWriter);
+}
+
+std::vector<crossbow::string> ServerManager::getMatchingHosts(crossbow::string tag) {
+    std::vector<crossbow::string> matchingHosts;
+    for (const auto& nodeIt : mDirectory) {
+        if (mNodeRing.isActive(nodeIt.second->host) && nodeIt.second->tag == tag) {
+            matchingHosts.push_back(nodeIt.second->host);
+        }
+    }
+    return std::move(matchingHosts);
+}
+
+std::vector<crossbow::string> ServerManager::getBootstrappingHosts(crossbow::string tag) {
+    std::vector<crossbow::string> bootstrappingHosts;
+    for (const auto& nodeIt : mDirectory) {
+        if (mNodeRing.isActive(nodeIt.second->host) && nodeIt.second->tag == tag && nodeIt.second->isBootstrapping) {
+            bootstrappingHosts.push_back(nodeIt.second->host);
+        }
+    }
+    return std::move(bootstrappingHosts);
 }
 
 } // namespace commitmanager

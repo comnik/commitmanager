@@ -68,6 +68,8 @@ namespace commitmanager {
 
             const bool isEmpty() { return nodeRing.empty(); }
 
+            const void dumpRanges();
+
         private:
             // Murmur seed
             static const uint32_t SEED = 0;
@@ -220,6 +222,17 @@ namespace commitmanager {
         auto search = nodeRing.find(nodeToken);
 
         return search != nodeRing.end();
+    }
+
+    template <class Node>
+    const void HashRing<Node>::dumpRanges() {
+        LOG_DEBUG("== Ranges ====================");
+        for (const auto& nodeIt : nodeRing) {
+            LOG_DEBUG("Node %1% ranges:", nodeIt.second);
+            for (const auto& range : nodeRing.getRanges(nodeIt.second)) {
+                LOG_DEBUG("\t[%1%, %2%]", writeHash(range.start), writeHash(range.end));
+            }
+        }
     }
 
 } // namespace store

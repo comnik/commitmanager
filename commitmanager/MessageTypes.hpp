@@ -82,6 +82,7 @@ struct ClusterMeta {
 
 struct ClusterState {
     size_t numPeers;
+    uint64_t directoryVersion;
     crossbow::string peers;
     crossbow::string bootstrappingPeers;
     std::unique_ptr<SnapshotDescriptor> snapshot;

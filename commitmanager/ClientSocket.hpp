@@ -120,6 +120,7 @@ public:
     std::shared_ptr<CommitResponse> commitTransaction(crossbow::infinio::Fiber& fiber, uint64_t version);
 
     std::shared_ptr<ClusterStateResponse> registerNode( crossbow::infinio::Fiber& fiber,
+                                                        const SnapshotDescriptor& snapshot,
                                                         crossbow::string host,
                                                         crossbow::string tag );
 
