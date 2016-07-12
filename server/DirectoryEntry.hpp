@@ -40,7 +40,7 @@ namespace tell {
             DirectoryEntry(crossbow::string h, crossbow::string t) :
                 host(h),
                 tag(t),
-                isBootstrapping(false)
+                isBootstrapping(true)
                 {}
         };
 
