@@ -40,7 +40,20 @@ void StartResponse::processResponse(crossbow::buffer_reader& message) {
     clusterState->peers = crossbow::string(message.read(peersSize), peersSize);
     
     uint32_t bootstrappingPeersSize = message.read<uint32_t>();
-    clusterState->bootstrappingPeers = crossbow::string(message.read(bootstrappingPeersSize), bootstrappingPeersSize);
+    crossbow::string bootstrapInfo = crossbow::string(message.read(bootstrappingPeersSize), bootstrappingPeersSize);
+    
+    LOG_INFO("Bootstrapping peers: %1%", bootstrapInfo);
+    if (!bootstrapInfo.empty()) {
+        size_t i = 0;
+        while (true) {
+            auto pos = bootstrapInfo.find(';', i);
+            clusterState->bootstrappingPeers.insert(bootstrapInfo.substr(i, pos));
+            if (pos == crossbow::string::npos) {
+                break;
+            }
+            i = pos + 1;
+        }
+    }
 
     setResult(std::move(clusterState));
 }

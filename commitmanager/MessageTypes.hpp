@@ -25,6 +25,7 @@
 
 #include <cstdint>
 #include <vector>
+#include <set>
 
 #include <crossbow/string.hpp>
 
@@ -84,7 +85,7 @@ struct ClusterState {
     size_t numPeers;
     uint64_t directoryVersion;
     crossbow::string peers;
-    crossbow::string bootstrappingPeers;
+    std::set<crossbow::string> bootstrappingPeers;
     std::unique_ptr<SnapshotDescriptor> snapshot;
 };
 
