@@ -61,6 +61,7 @@ namespace commitmanager {
 
             const Node* getNode(uint64_t tableId, uint64_t key);
             const Node* getNode(Hash token);
+            const Node* getPreviousNode(Hash token);
 
             const bool isActive(const crossbow::string& nodeName);
 
@@ -133,7 +134,7 @@ namespace commitmanager {
         Hash hash;
         for (uint32_t vnode = 0; vnode < numVirtualNodes; vnode++) {
             hash = getPartitionToken(nodeName, vnode);
-            nodeRing[hash] = node;
+            nodeRing.emplace(hash, node);
         }
         return std::move(hash);
     }
@@ -164,6 +165,22 @@ namespace commitmanager {
             return nullptr;
         } else {
             auto it = nodeRing.lower_bound(token);
+            if (it == nodeRing.end()) {
+                it = nodeRing.begin();
+            }
+            return &it->second;
+        }
+    }
+
+    /**
+     * Returns the node that used to own the given token.
+     */
+    template <class Node>
+    const Node* HashRing<Node>::getPreviousNode(Hash token) {
+        if (nodeRing.empty()) {
+            return nullptr;
+        } else {
+            auto it = nodeRing.upper_bound(token);
             if (it == nodeRing.end()) {
                 it = nodeRing.begin();
             }
