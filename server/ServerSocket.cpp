@@ -181,7 +181,7 @@ void ServerManager::handleRegisterNode(ServerSocket *con,
         // Special case for the very first node: It has to be inserted
         // before calculating ranges, so pointers don't wrap around in the ring.
         mNodeRing.insertNode(host, host);
-        mDirectory[host]->isBootstrapping = false;      
+        mDirectory[host]->isBootstrapping = false;
     }
     
     std::vector<Partition> ranges = mNodeRing.getRanges(host);

@@ -63,13 +63,13 @@ namespace commitmanager {
             const Node* getNode(Hash token);
             const Node* getPreviousNode(Hash token);
 
-            const bool isActive(const crossbow::string& nodeName);
+            const std::map<Hash, Node> getRing() const;
 
-            std::vector<Partition> getRanges(const crossbow::string& nodeName);
+            const bool isActive(const crossbow::string& nodeName) const;
+
+            std::vector<Partition> getRanges(const crossbow::string& nodeName) const;
 
             const bool isEmpty() { return nodeRing.empty(); }
-
-            const void dumpRanges();
 
         private:
             // Murmur seed
@@ -172,6 +172,11 @@ namespace commitmanager {
         }
     }
 
+    template <class Node>
+    const std::map<Hash, Node> HashRing<Node>::getRing() const {
+        return nodeRing;
+    }
+
     /**
      * Returns the node that used to own the given token.
      */
@@ -180,16 +185,24 @@ namespace commitmanager {
         if (nodeRing.empty()) {
             return nullptr;
         } else {
-            auto it = nodeRing.upper_bound(token);
-            if (it == nodeRing.end()) {
-                it = nodeRing.begin();
+            auto owner = nodeRing.lower_bound(token);
+            if (owner == nodeRing.end()) {
+                owner = nodeRing.begin();
             }
-            return &it->second;
+
+            // We have to use std::next even though we 
+            // are interested in the 'previous' owner. This is because
+            // the next highest node used to own the given token.
+            auto prevOwner = std::next(owner);
+            if (prevOwner == nodeRing.end()) {
+                prevOwner = nodeRing.begin();
+            }
+            return &prevOwner->second;
         }
     }
 
     template <class Node>
-    std::vector<Partition> HashRing<Node>::getRanges(const crossbow::string& nodeName) {
+    std::vector<Partition> HashRing<Node>::getRanges(const crossbow::string& nodeName) const {
         std::vector<Partition> ranges;
         
         Hash hash;
@@ -234,22 +247,11 @@ namespace commitmanager {
     }
 
     template <class Node>
-    const bool HashRing<Node>::isActive(const crossbow::string& nodeName) {
+    const bool HashRing<Node>::isActive(const crossbow::string& nodeName) const {
         Hash nodeToken = getPartitionToken(nodeName, 0);
         auto search = nodeRing.find(nodeToken);
 
         return search != nodeRing.end();
-    }
-
-    template <class Node>
-    const void HashRing<Node>::dumpRanges() {
-        LOG_DEBUG("== Ranges ====================");
-        for (const auto& nodeIt : nodeRing) {
-            LOG_DEBUG("Node %1% ranges:", nodeIt.second);
-            for (const auto& range : nodeRing.getRanges(nodeIt.second)) {
-                LOG_DEBUG("\t[%1%, %2%]", writeHash(range.start), writeHash(range.end));
-            }
-        }
     }
 
 } // namespace store
