@@ -165,12 +165,9 @@ void ServerManager::handleRegisterNode(ServerSocket *con,
     
     uint32_t tagSize = message.read<uint32_t>();
     crossbow::string tag(message.read(tagSize), tagSize);
-    
-    // Get directory info
-    crossbow::string nodeInfo = boost::algorithm::join(getMatchingHosts(tag), ";");
 
     // Register the node
-    LOG_INFO("Registering node @ %1% (last was %2%)", version, mDirectoryVersion);
+    LOG_INFO("Registering node %1% @ %2% (last was %3%)", host, version, mDirectoryVersion);
     if (version > mDirectoryVersion) {
         mDirectoryVersion = version;
     }
@@ -189,16 +186,12 @@ void ServerManager::handleRegisterNode(ServerSocket *con,
     mNodeRing.insertNode(host, host);
 
     // Write response
-    uint32_t messageLength = sizeof(uint32_t) + nodeInfo.size() + sizeof(uint32_t);
+    uint32_t messageLength = sizeof(uint32_t);
     for (auto const &range : ranges) {
         messageLength += 2*sizeof(Hash) + sizeof(uint32_t) + range.owner.size();
     }
 
-    auto responseWriter = [nodeInfo, &ranges](crossbow::buffer_writer& message, std::error_code& /* ec */) {
-        // Write host addresses
-        message.write<uint32_t>(nodeInfo.size());
-        message.write(nodeInfo.data(), nodeInfo.size());
-
+    auto responseWriter = [&ranges](crossbow::buffer_writer& message, std::error_code& /* ec */) {
         // Write ranges
         message.write<uint32_t>(ranges.size()); // number of ranges
         for (const auto& range : ranges) {            

@@ -64,10 +64,6 @@ void CommitResponse::processResponse(crossbow::buffer_reader& message) {
 
 void ClusterStateResponse::processResponse(crossbow::buffer_reader &message) {
     std::unique_ptr<ClusterMeta> clusterMeta(new ClusterMeta);
-
-    // Read host addresses
-    uint32_t hostsSize = message.read<uint32_t>();
-    clusterMeta->hosts = crossbow::string(message.read(hostsSize), hostsSize);
     
     // Read ranges
     uint32_t numRanges = message.read<uint32_t>();

@@ -75,9 +75,8 @@ struct Partition {
 };
 
 struct ClusterMeta {
-    // Other hosts in the cluster
-    crossbow::string hosts;
-    // Ranges the recipient is responsible for
+    // Ranges the recipient is responsible for,
+    // or ranges supposed to be transferred.
     std::vector<Partition> ranges;
 };
 
