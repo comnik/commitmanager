@@ -211,21 +211,41 @@ void ServerManager::handleRegisterNode(ServerSocket *con,
 void ServerManager::handleUnregisterNode(ServerSocket *con,
                                          crossbow::infinio::MessageId messageId,
                                          crossbow::buffer_reader &message) {
+    uint64_t version = message.read<uint64_t>();
+
     uint32_t hostSize = message.read<uint32_t>();
     crossbow::string host(message.read(hostSize), hostSize);
+
+    LOG_INFO("Unregistering node %1% @ %2% (last was %3%)", host, version, mDirectoryVersion);
+    if (version > mDirectoryVersion) {
+        mDirectoryVersion = version;
+    }
 
     // Remove the node from the node directory
     mDirectory.erase(host);
 
     // Remove the node from the hash ring
-    mNodeRing.removeNode(host);
+    auto ranges = mNodeRing.removeNode(host);
 
-    // Write response
-    uint32_t messageLength = sizeof(uint8_t);
-    auto responseWriter = [](crossbow::buffer_writer& message, std::error_code& /* ec */) { 
-        message.write<uint8_t>(0x1u); 
+    LOG_INFO("Giving up %1% ranges...", ranges.size());
+
+    uint32_t messageLength = sizeof(uint32_t);
+    for (auto const &range : ranges) {
+        messageLength += 2*sizeof(Hash) + sizeof(uint32_t) + range.owner.size();
+    }
+
+    auto responseWriter = [&ranges](crossbow::buffer_writer& message, std::error_code& /* ec */) { 
+        // Write ranges
+        message.write<uint32_t>(ranges.size()); // number of ranges
+        for (const auto& range : ranges) {            
+            message.write<Hash>(range.start);
+            message.write<Hash>(range.end);
+
+            message.write<uint32_t>(range.owner.size());
+            message.write(range.owner.data(), range.owner.size());
+        }
     };
-    con->writeResponse(messageId, ResponseType::COMMIT, messageLength, responseWriter);
+    con->writeResponse(messageId, ResponseType::CLUSTER_STATE, messageLength, responseWriter);
 }
 
 /**

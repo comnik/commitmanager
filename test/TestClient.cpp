@@ -21,11 +21,15 @@
  *     Lucas Braun <braunl@inf.ethz.ch>
  */
 #include <commitmanager/ClientSocket.hpp>
+#include <commitmanager/HashRing.hpp>
 
 #include <crossbow/infinio/Endpoint.hpp>
 #include <crossbow/infinio/InfinibandService.hpp>
 #include <crossbow/logger.hpp>
 #include <crossbow/program_options.hpp>
+
+using HashRing_t = tell::commitmanager::HashRing<crossbow::string>;
+
 
 int main(int argc, const char** argv) {
     crossbow::string commitManagerHost;
@@ -70,64 +74,70 @@ int main(int argc, const char** argv) {
         crossbow::string tag = "STORAGE";
 
         LOG_INFO("Starting transaction");
-        auto startResponse = client.startTransaction(fiber, false);
-        if (!startResponse->waitForResult()) {
-            auto& ec = startResponse->error();
-            LOG_INFO("Error while starting transaction [error = %1% %2%]", ec, ec.message());
+        auto txResp = client.startTransaction(fiber, false);
+        if (!txResp->waitForResult()) {
+            auto& ec = txResp->error();
+            LOG_ERROR("Error while starting transaction [error = %1% %2%]", ec, ec.message());
             return;
         }
-        auto clusterState = startResponse->get();
+        auto clusterState = txResp->get();
         LOG_INFO("Started transaction [snapshot = %1%]", *clusterState->snapshot);
 
         LOG_INFO("Registering with the node directory");
-        auto registerResponse = client.registerNode(
-            fiber, 
-            *clusterState->snapshot,
-            token, 
-            tag
-        );
-        if (!registerResponse->waitForResult()) {
-            auto& ec = registerResponse->error();
-            LOG_INFO("Error while receiving cluster information [error = %1% %2%]", ec, ec.message());
+        auto registerResp = client.registerNode(fiber, *clusterState->snapshot, token, tag);
+        if (!registerResp->waitForResult()) {
+            auto& ec = registerResp->error();
+            LOG_ERROR("Error while receiving cluster information [error = %1% %2%]", ec, ec.message());
             return;
         }
-        auto clusterMeta = registerResponse->get();
-        LOG_INFO("Received storage node info: %1%", clusterMeta->hosts);
+        auto clusterMeta = registerResp->get();
         
         LOG_INFO("Responsible for ranges:");
         for (const auto& range : clusterMeta->ranges) {
-            LOG_INFO("\t[%1%, %2%] owned by %3%", (uint64_t) range.start, (uint64_t) range.end, range.owner);
+            LOG_INFO("\t[%1%, %2%] owned by %3%", HashRing_t::writeHash(range.start), HashRing_t::writeHash(range.end), range.owner);
         }
-
-        // LOG_INFO("Unregistering with the node directory");
-        // auto unregisterResponse = client.unregisterNode(fiber, token);
-        // if (!unregisterResponse->waitForResult()) {
-        //     auto& ec = unregisterResponse->error();
-        //     LOG_INFO("Error while reading cluster information [error = %1% %2%]", ec, ec.message());
-        //     return;
-        // }
-        // auto unregisterSucceeded = unregisterResponse->get();
-        // LOG_INFO("Unregistering succeeded? %1%", unregisterSucceeded);
-
-        // LOG_INFO("Re-registering with the node directory");
-        // auto reRegisterResponse = client.registerNode(fiber, token, tag);
-        // if (!reRegisterResponse->waitForResult()) {
-        //     auto& ec = reRegisterResponse->error();
-        //     LOG_INFO("Error while receiving cluster information [error = %1% %2%]", ec, ec.message());
-        //     return;
-        // }
-        // auto newClusterMeta = reRegisterResponse->get();
-        // LOG_INFO("Received storage node info: %1%", newClusterMeta->hosts);
 
         LOG_INFO("Committing transaction");
-        auto commitResponse = client.commitTransaction(fiber, clusterState->snapshot->version());
-        if (!commitResponse->waitForResult()) {
-            auto& ec = commitResponse->error();
-            LOG_INFO("Error while committing transaction [error = %1% %2%]", ec, ec.message());
+        auto commitResp = client.commitTransaction(fiber, clusterState->snapshot->version());
+        if (!commitResp->waitForResult()) {
+            auto& ec = commitResp->error();
+            LOG_ERROR("Error while committing transaction [error = %1% %2%]", ec, ec.message());
             return;
         }
-        auto succeeded = commitResponse->get();
-        LOG_INFO("Committed transaction [succeeded = %1%]", succeeded);
+        LOG_INFO("Committed transaction [succeeded = %1%]", commitResp->get());
+
+        LOG_INFO("Starting transaction");
+        txResp = client.startTransaction(fiber, false);
+        if (!txResp->waitForResult()) {
+            auto& ec = txResp->error();
+            LOG_ERROR("Error while starting transaction [error = %1% %2%]", ec, ec.message());
+            return;
+        }
+        clusterState = txResp->get();
+        LOG_INFO("Started transaction [snapshot = %1%]", *clusterState->snapshot);
+
+        LOG_INFO("Unregistering with the node directory");
+        auto unregisterResp = client.unregisterNode(fiber, *clusterState->snapshot, token);
+        if (!unregisterResp->waitForResult()) {
+            auto& ec = unregisterResp->error();
+            LOG_ERROR("Error while reading cluster information [error = %1% %2%]", ec, ec.message());
+            return;
+        }
+        clusterMeta = unregisterResp->get();
+        
+        LOG_INFO("Giving up ranges:");
+        for (const auto& range : clusterMeta->ranges) {
+            LOG_INFO("\t[%1%, %2%] -> %3%", HashRing_t::writeHash(range.start), HashRing_t::writeHash(range.end), range.owner);
+        }
+
+        LOG_INFO("Committing transaction");
+        commitResp = client.commitTransaction(fiber, clusterState->snapshot->version());
+        if (!commitResp->waitForResult()) {
+            auto& ec = commitResp->error();
+            LOG_ERROR("Error while committing transaction [error = %1% %2%]", ec, ec.message());
+            return;
+        }
+        LOG_INFO("Committed transaction [succeeded = %1%]", commitResp->get());
     });
 
     service.run();

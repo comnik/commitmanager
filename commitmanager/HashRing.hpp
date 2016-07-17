@@ -55,7 +55,7 @@ namespace commitmanager {
 
             Hash insertNode(const crossbow::string& nodeName, const Node& node);
             
-            void removeNode(const crossbow::string& nodeName);
+            std::vector<Partition> removeNode(const crossbow::string& nodeName);
             
             void clear();
 
@@ -67,6 +67,7 @@ namespace commitmanager {
 
             const bool isActive(const crossbow::string& nodeName) const;
 
+            void getRange(std::vector<Partition>& ranges, Hash hash) const;
             std::vector<Partition> getRanges(const crossbow::string& nodeName) const;
 
             const bool isEmpty() { return nodeRing.empty(); }
@@ -140,12 +141,28 @@ namespace commitmanager {
     }
 
     template <class Node>
-    void HashRing<Node>::removeNode(const crossbow::string& nodeName) {
-        Hash hash;
+    std::vector<Partition> HashRing<Node>::removeNode(const crossbow::string& nodeName) {
+        std::vector<Partition> transfers;
+        
         for (size_t vnode = 0; vnode < numVirtualNodes; vnode++) {
-            hash = getPartitionToken(nodeName, vnode);
-            nodeRing.erase(hash);
+            Hash hash = getPartitionToken(nodeName, vnode);
+
+            auto search = nodeRing.find(hash);
+            if (search == nodeRing.end()) {
+                LOG_ERROR("Attempted to remove a node that is not in the ring.");
+            } else {
+                nodeRing.erase(search);
+
+                // Find the ranges the node used to own
+                auto ranges = getRanges(nodeName);
+                for (const auto& range : ranges) {
+                    auto newOwner = getNode(range.end);
+                    transfers.emplace_back(*newOwner, range.start, range.end);
+                }
+            }
         }
+
+        return std::move(transfers);
     }
 
     template <class Node>
@@ -202,45 +219,48 @@ namespace commitmanager {
     }
 
     template <class Node>
+    void HashRing<Node>::getRange(std::vector<Partition>& ranges, Hash hash) const {
+        auto lowerBound = nodeRing.lower_bound(hash);
+
+        if (hash <= nodeRing.begin()->first) {
+            // Case 0: first node encountered in clockwise direction
+            LOG_DEBUG("Case 0");
+            ranges.emplace_back(nodeRing.begin()->second, nodeRing.rbegin()->first + 1, std::numeric_limits<Hash>::max()-1);
+        }
+        
+        if (lowerBound == nodeRing.end()) {
+            // Case 1: lowerBound wraps around
+            LOG_DEBUG("Case 1");
+            auto neighbour = std::prev(lowerBound);
+            crossbow::string owner = nodeRing.begin()->second;
+
+            ranges.emplace_back(owner, neighbour->first + 1, hash);
+        } 
+        
+        if (lowerBound == nodeRing.begin()) {
+            // Case 2: prev(lowerBound) wraps around
+            LOG_DEBUG("Case 2");
+            crossbow::string owner = nodeRing.begin()->second;
+            ranges.emplace_back(owner, (Hash) 0, hash);
+        }
+
+        if (lowerBound != nodeRing.begin() && lowerBound != nodeRing.end()) {
+            // Case 3: none wrap around
+            LOG_DEBUG("Case 3");
+            crossbow::string owner = lowerBound->second;
+            auto neighbour = std::prev(lowerBound);
+
+            ranges.emplace_back(owner, neighbour->first + 1, hash);
+        }    
+    }
+
+    template <class Node>
     std::vector<Partition> HashRing<Node>::getRanges(const crossbow::string& nodeName) const {
         std::vector<Partition> ranges;
         
-        Hash hash;
         for (uint32_t vnode = 0; vnode < numVirtualNodes; vnode++) {
-            hash = getPartitionToken(nodeName, vnode);
-
-            auto lowerBound = nodeRing.lower_bound(hash);
-
-            if (hash <= nodeRing.begin()->first) {
-                // Case 0: first node encountered in clockwise direction
-                LOG_DEBUG("Case 0");
-                ranges.emplace_back(nodeRing.begin()->second, nodeRing.rbegin()->first + 1, std::numeric_limits<Hash>::max()-1);
-            }
-            
-            if (lowerBound == nodeRing.end()) {
-                // Case 1: lowerBound wraps around
-                LOG_DEBUG("Case 1");
-                auto neighbour = std::prev(lowerBound);
-                crossbow::string owner = nodeRing.begin()->second;
-
-                ranges.emplace_back(owner, neighbour->first + 1, hash);
-            } 
-            
-            if (lowerBound == nodeRing.begin()) {
-                // Case 2: prev(lowerBound) wraps around
-                LOG_DEBUG("Case 2");
-                crossbow::string owner = nodeRing.begin()->second;
-                ranges.emplace_back(owner, (Hash) 0, hash);
-            }
-
-            if (lowerBound != nodeRing.begin() && lowerBound != nodeRing.end()) {
-                // Case 3: none wrap around
-                LOG_DEBUG("Case 3");
-                crossbow::string owner = lowerBound->second;
-                auto neighbour = std::prev(lowerBound);
-
-                ranges.emplace_back(owner, neighbour->first + 1, hash);
-            }
+            Hash hash = getPartitionToken(nodeName, vnode);
+            getRange(ranges, hash);
         }
 
         return std::move(ranges);

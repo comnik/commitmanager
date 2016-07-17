@@ -124,8 +124,9 @@ public:
                                                         crossbow::string host,
                                                         crossbow::string tag );
 
-    std::shared_ptr<CommitResponse> unregisterNode( crossbow::infinio::Fiber& fiber,
-                                                    crossbow::string host );
+    std::shared_ptr<ClusterStateResponse> unregisterNode( crossbow::infinio::Fiber& fiber,
+                                                          const SnapshotDescriptor& snapshot,
+                                                          crossbow::string host );
 
     std::shared_ptr<CommitResponse> transferOwnership(  crossbow::infinio::Fiber& fiber,
                                                         crossbow::string fromHost,
