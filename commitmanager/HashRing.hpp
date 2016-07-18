@@ -143,7 +143,7 @@ namespace commitmanager {
     template <class Node>
     std::vector<Partition> HashRing<Node>::removeNode(const crossbow::string& nodeName) {
         std::vector<Partition> transfers;
-        
+
         for (size_t vnode = 0; vnode < numVirtualNodes; vnode++) {
             Hash hash = getPartitionToken(nodeName, vnode);
 
@@ -152,6 +152,11 @@ namespace commitmanager {
                 LOG_ERROR("Attempted to remove a node that is not in the ring.");
             } else {
                 nodeRing.erase(search);
+
+                if (nodeRing.empty()) {
+                    LOG_WARN("No other nodes available. Removing this node will lead to complete loss of data.");
+                    return transfers;
+                }   
 
                 // Find the ranges the node used to own
                 auto ranges = getRanges(nodeName);

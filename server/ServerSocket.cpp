@@ -227,8 +227,6 @@ void ServerManager::handleUnregisterNode(ServerSocket *con,
     // Remove the node from the hash ring
     auto ranges = mNodeRing.removeNode(host);
 
-    LOG_INFO("Giving up %1% ranges...", ranges.size());
-
     uint32_t messageLength = sizeof(uint32_t);
     for (auto const &range : ranges) {
         messageLength += 2*sizeof(Hash) + sizeof(uint32_t) + range.owner.size();
