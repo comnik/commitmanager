@@ -23,6 +23,7 @@
 
 #include <commitmanager/ClientSocket.hpp>
 #include <commitmanager/MessageTypes.hpp>
+#include <commitmanager/HashRing.hpp>
 
 #include <crossbow/logger.hpp>
 
@@ -39,21 +40,7 @@ void StartResponse::processResponse(crossbow::buffer_reader& message) {
     uint32_t peersSize = message.read<uint32_t>();
     clusterState->peers = crossbow::string(message.read(peersSize), peersSize);
     
-    uint32_t bootstrappingPeersSize = message.read<uint32_t>();
-    crossbow::string bootstrapInfo = crossbow::string(message.read(bootstrappingPeersSize), bootstrappingPeersSize);
-    
-    LOG_DEBUG("Bootstrapping peers: %1%", bootstrapInfo);
-    if (!bootstrapInfo.empty()) {
-        size_t i = 0;
-        while (true) {
-            auto pos = bootstrapInfo.find(';', i);
-            clusterState->bootstrappingPeers.insert(bootstrapInfo.substr(i, pos));
-            if (pos == crossbow::string::npos) {
-                break;
-            }
-            i = pos + 1;
-        }
-    }
+    clusterState->hashRing = std::move(HashRing::deserialize(message));
 
     setResult(std::move(clusterState));
 }

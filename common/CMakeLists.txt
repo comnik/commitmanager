@@ -5,6 +5,7 @@ set(COMMON_SRCS
     CommitManager.cpp
     Descriptor.cpp
     MessageTypes.cpp
+    HashRing.cpp
     SnapshotDescriptor.cpp
     MurmurHash3.cpp
 )

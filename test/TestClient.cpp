@@ -28,7 +28,8 @@
 #include <crossbow/logger.hpp>
 #include <crossbow/program_options.hpp>
 
-using HashRing_t = tell::commitmanager::HashRing<crossbow::string>;
+
+using namespace tell::commitmanager;
 
 
 int main(int argc, const char** argv) {
@@ -66,7 +67,7 @@ int main(int argc, const char** argv) {
     crossbow::infinio::InfinibandService service(infinibandLimits);
 
     auto processor = service.createProcessor();
-    tell::commitmanager::ClientSocket client(service.createSocket(*processor));
+    ClientSocket client(service.createSocket(*processor));
     client.connect(crossbow::infinio::Endpoint(crossbow::infinio::Endpoint::ipv4(), commitManagerHost));
 
     processor->executeFiber([&client] (crossbow::infinio::Fiber& fiber) {
@@ -94,7 +95,7 @@ int main(int argc, const char** argv) {
         
         LOG_INFO("Responsible for ranges:");
         for (const auto& range : clusterMeta->ranges) {
-            LOG_INFO("\t[%1%, %2%] owned by %3%", HashRing_t::writeHash(range.start), HashRing_t::writeHash(range.end), range.owner);
+            LOG_INFO("\t[%1%, %2%] owned by %3%", HashRing::writeHash(range.start), HashRing::writeHash(range.end), range.owner);
         }
 
         LOG_INFO("Committing transaction");
@@ -127,7 +128,7 @@ int main(int argc, const char** argv) {
         
         LOG_INFO("Giving up ranges:");
         for (const auto& range : clusterMeta->ranges) {
-            LOG_INFO("\t[%1%, %2%] -> %3%", HashRing_t::writeHash(range.start), HashRing_t::writeHash(range.end), range.owner);
+            LOG_INFO("\t[%1%, %2%] -> %3%", HashRing::writeHash(range.start), HashRing::writeHash(range.end), range.owner);
         }
 
         LOG_INFO("Committing transaction");

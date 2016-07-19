@@ -117,12 +117,15 @@ void ServerManager::handleStartTransaction(ServerSocket* con,
     }
 
     crossbow::string nodeInfo = boost::algorithm::join(getMatchingHosts("STORAGE"), ";");
-    crossbow::string bootstrapInfo = boost::algorithm::join(getBootstrappingHosts("STORAGE"), ";");
-
-    auto messageLength = mCommitManager.serializedLength() + sizeof(uint64_t) + 2*sizeof(uint32_t) + nodeInfo.size() + bootstrapInfo.size();
     
+    auto messageLength = mCommitManager.serializedLength() 
+                        + sizeof(uint64_t) 
+                        + 2*sizeof(uint32_t) 
+                        + nodeInfo.size() 
+                        + mNodeRing.serializedLength();
+
     con->writeResponse(messageId, ResponseType::START, messageLength, 
-        [this, nodeInfo, bootstrapInfo] (crossbow::buffer_writer& message, std::error_code& /* ec */) {
+        [this, nodeInfo] (crossbow::buffer_writer& message, std::error_code& /* ec */) {
             mCommitManager.serializeSnapshot(message);
 
             // Write most recent directory version
@@ -132,9 +135,8 @@ void ServerManager::handleStartTransaction(ServerSocket* con,
             message.write<uint32_t>(nodeInfo.size());
             message.write(nodeInfo.data(), nodeInfo.size());
 
-            // Write addresses of bootstrapping peers
-            message.write<uint32_t>(bootstrapInfo.size());
-            message.write(bootstrapInfo.data(), bootstrapInfo.size()); 
+            // Write all partitions
+            mNodeRing.serialize(message);
         }
     );
 }
@@ -174,16 +176,16 @@ void ServerManager::handleRegisterNode(ServerSocket *con,
 
     mDirectory[host] = std::move(std::unique_ptr<DirectoryEntry>(new DirectoryEntry(host, tag)));
 
+    std::vector<Partition> ranges;
     if (mNodeRing.isEmpty()) {
         // Special case for the very first node: It has to be inserted
         // before calculating ranges, so pointers don't wrap around in the ring.
-        mNodeRing.insertNode(host, host);
-        mDirectory[host]->isBootstrapping = false;
+        mNodeRing.insertNode(host);
+        ranges = mNodeRing.getRanges(host);
+    } else {
+        ranges = mNodeRing.getRanges(host);
+        mNodeRing.insertNode(host);
     }
-    
-    std::vector<Partition> ranges = mNodeRing.getRanges(host);
-
-    mNodeRing.insertNode(host, host);
 
     // Write response
     uint32_t messageLength = sizeof(uint32_t);
@@ -258,8 +260,8 @@ void ServerManager::handleTransferOwnership(ServerSocket *con,
     uint32_t toHostSize = message.read<uint32_t>();
     crossbow::string toHost(message.read(toHostSize), toHostSize);
 
-    // Now we can mark the new node as active for the transferred ranges
-    mNodeRing.insertNode(toHost, toHost);
+    // Now we can mark the new node as active
+    // mDirectory[toHost]->isBootstrapping = false;
     
     // Write response
     uint32_t messageLength = sizeof(uint8_t);
@@ -277,16 +279,6 @@ std::vector<crossbow::string> ServerManager::getMatchingHosts(crossbow::string t
         }
     }
     return std::move(matchingHosts);
-}
-
-std::vector<crossbow::string> ServerManager::getBootstrappingHosts(crossbow::string tag) {
-    std::vector<crossbow::string> bootstrappingHosts;
-    for (const auto& nodeIt : mDirectory) {
-        if (mNodeRing.isActive(nodeIt.second->host) && nodeIt.second->tag == tag && nodeIt.second->isBootstrapping) {
-            bootstrappingHosts.push_back(nodeIt.second->host);
-        }
-    }
-    return std::move(bootstrappingHosts);
 }
 
 } // namespace commitmanager

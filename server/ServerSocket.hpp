@@ -87,7 +87,6 @@ private:
     void handleTransferOwnership(ServerSocket *con, crossbow::infinio::MessageId messageId, crossbow::buffer_reader &message);
 
     std::vector<crossbow::string> getMatchingHosts(crossbow::string tag);
-    std::vector<crossbow::string> getBootstrappingHosts(crossbow::string tag);
 
     std::unique_ptr<crossbow::infinio::InfinibandProcessor> mProcessor;
 
@@ -97,7 +96,7 @@ private:
 
     uint64_t mDirectoryVersion;
     std::unordered_map<crossbow::string, std::unique_ptr<DirectoryEntry>> mDirectory;
-    HashRing<crossbow::string> mNodeRing;
+    HashRing mNodeRing;
 };
 
 } // namespace commitmanager

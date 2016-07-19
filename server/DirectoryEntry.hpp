@@ -35,13 +35,11 @@ namespace tell {
         struct DirectoryEntry {
             crossbow::string host;
             crossbow::string tag;
-            bool isBootstrapping;
 
-            DirectoryEntry(crossbow::string h, crossbow::string t) :
-                host(h),
-                tag(t),
-                isBootstrapping(true)
-                {}
+            DirectoryEntry(crossbow::string h, crossbow::string t) 
+                    : host(h),
+                      tag(t) 
+                      {}
         };
 
     } // namespace commitmanager

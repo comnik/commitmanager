@@ -19,29 +19,65 @@
  *     Thomas Etter <etterth@gmail.com>
  *     Kevin Bocksrocker <kevin.bocksrocker@gmail.com>
  *     Lucas Braun <braunl@inf.ethz.ch>
+ *     Nikolas Göbel <ngoebel@student.ethz.ch>
  */
 #pragma once
 
 #include <map>
-#include <iterator>
-#include <limits>
 
+#include <crossbow/byte_buffer.hpp>
 #include <crossbow/string.hpp>
 #include <crossbow/logger.hpp>
-
-#include <commitmanager/MessageTypes.hpp>
 
 #include "MurmurHash3.h"
 
 namespace tell {
 namespace commitmanager {
+
+    using Hash = unsigned __int128;
+
+    // Describes a partition [start, end] and the node that currently owns it
+    struct Partition {
+        const crossbow::string owner;
+        Hash start;
+        Hash end;
+
+        Partition(crossbow::string owner, Hash start, Hash end) 
+            : owner(owner),
+              start(start),
+              end(end) {}
+    };
+
+    struct PartitionMeta {
+        crossbow::string owner;
+        crossbow::string previousOwner;
+        bool isBootstrapping;
+
+        PartitionMeta(const crossbow::string& owner)
+            : PartitionMeta(owner, true) {}
+
+        PartitionMeta(const crossbow::string& owner, bool isBootstrapping)
+            : owner(owner),
+              previousOwner(""),
+              isBootstrapping(isBootstrapping) {}
+
+        PartitionMeta(const crossbow::string& owner, const crossbow::string& previousOwner, bool isBootstrapping)
+            : owner(owner),
+              previousOwner(previousOwner),
+              isBootstrapping(isBootstrapping) {}
+
+        PartitionMeta(const PartitionMeta& other)
+            : owner(other.owner),
+              previousOwner(other.previousOwner),
+              isBootstrapping(other.isBootstrapping) {}
+    };
+
     /**
      * @brief Implementation of consistent hashing.
      */
-    template <class Node>
     class HashRing {
         public:
-            HashRing(size_t numVirtualNodes) 
+            HashRing(uint32_t numVirtualNodes) 
                 : numVirtualNodes(numVirtualNodes) {}
 
             static crossbow::string writeHash(Hash hash);
@@ -53,17 +89,14 @@ namespace commitmanager {
             static Hash getPartitionToken(uint64_t tableId, uint64_t key);
             static Hash getPartitionToken(const crossbow::string& nodeName, uint32_t vnode);
 
-            Hash insertNode(const crossbow::string& nodeName, const Node& node);
+            Hash insertNode(const crossbow::string& nodeName);
             
             std::vector<Partition> removeNode(const crossbow::string& nodeName);
-            
-            void clear();
 
-            const Node* getNode(uint64_t tableId, uint64_t key);
-            const Node* getNode(Hash token);
-            const Node* getPreviousNode(Hash token);
+            const PartitionMeta* getNode(uint64_t tableId, uint64_t key) const;
+            const PartitionMeta* getNode(Hash token) const;
 
-            const std::map<Hash, Node> getRing() const;
+            const std::map<Hash, PartitionMeta>& getRing() const;
 
             const bool isActive(const crossbow::string& nodeName) const;
 
@@ -72,212 +105,31 @@ namespace commitmanager {
 
             const bool isEmpty() { return nodeRing.empty(); }
 
+            uint32_t serializedLength() const {
+                uint32_t length = 2 * sizeof(uint32_t); // nodeRing.size() + numVirtualNodes
+
+                for (const auto& partitionIt : nodeRing) {
+                    length += sizeof(Hash)              // partition id
+                            + sizeof(uint32_t)          // owner length
+                            + partitionIt.second.owner.size()
+                            + sizeof(uint32_t)          // previous owner length
+                            + partitionIt.second.previousOwner.size()
+                            + sizeof(bool);             // is bootstrapping?
+                }
+
+                return length;
+            }
+
+            void serialize(crossbow::buffer_writer& writer) const;
+            static std::unique_ptr<HashRing> deserialize(crossbow::buffer_reader& reader);
+
         private:
             // Murmur seed
             static const uint32_t SEED = 0;
 
-            const size_t numVirtualNodes;
-            std::map<Hash, Node> nodeRing;
+            const uint32_t numVirtualNodes;
+            std::map<Hash, PartitionMeta> nodeRing;
     };
-
-    template <class Node>
-    crossbow::string HashRing<Node>::writeHash(Hash hash) {
-        Hash tmp = hash;
-        char buffer[128];
-        char* d = std::end( buffer );
-        
-        do {
-            --d;
-            *d = "0123456789"[tmp % 10];
-            tmp /= 10;
-        } while (tmp != 0);
-        
-        int len = std::end( buffer ) - d;
-        return crossbow::string(d, len);
-    }
-
-    /**
-     * Checks wether a partition is contained inside another.
-     */
-    template <class Node>
-    bool HashRing<Node>::isSubPartition(Hash parentStart, Hash parentEnd, Hash childStart, Hash childEnd) {
-        return (childStart >= parentStart && childEnd <= parentEnd);
-    }
-
-    /**
-     * Checks wether a token is contained in the given range.
-     */
-    template <class Node>
-    bool HashRing<Node>::inPartition(Hash token, Hash rangeStart, Hash rangeEnd) {
-        return (token >= rangeStart && token <= rangeEnd);
-    }
-
-    template <class Node>
-    Hash HashRing<Node>::getPartitionToken(uint64_t tableId, uint64_t key) {
-        Hash hash;
-        crossbow::string composite_key = crossbow::to_string(tableId) + crossbow::to_string(key);
-        MurmurHash3_x64_128(composite_key.data(), composite_key.size(), HashRing<Node>::SEED, &hash);
-        
-        return std::move(hash);
-    }
-
-    template <class Node>
-    Hash HashRing<Node>::getPartitionToken(const crossbow::string& nodeName, uint32_t vnode) {
-        Hash hash;
-        crossbow::string token = crossbow::to_string(vnode) + nodeName;
-        MurmurHash3_x64_128(token.data(), token.size(), HashRing<Node>::SEED, &hash);
-
-        return std::move(hash);
-    }
-
-    template <class Node>
-    Hash HashRing<Node>::insertNode(const crossbow::string& nodeName, const Node& node) {
-        Hash hash;
-        for (uint32_t vnode = 0; vnode < numVirtualNodes; vnode++) {
-            hash = getPartitionToken(nodeName, vnode);
-            nodeRing.emplace(hash, node);
-        }
-        return std::move(hash);
-    }
-
-    template <class Node>
-    std::vector<Partition> HashRing<Node>::removeNode(const crossbow::string& nodeName) {
-        std::vector<Partition> transfers;
-
-        for (size_t vnode = 0; vnode < numVirtualNodes; vnode++) {
-            Hash hash = getPartitionToken(nodeName, vnode);
-
-            auto search = nodeRing.find(hash);
-            if (search == nodeRing.end()) {
-                LOG_ERROR("Attempted to remove a node that is not in the ring.");
-            } else {
-                nodeRing.erase(search);
-
-                if (nodeRing.empty()) {
-                    LOG_WARN("No other nodes available. Removing this node will lead to complete loss of data.");
-                    return transfers;
-                }   
-
-                // Find the ranges the node used to own
-                auto ranges = getRanges(nodeName);
-                for (const auto& range : ranges) {
-                    auto newOwner = getNode(range.end);
-                    transfers.emplace_back(*newOwner, range.start, range.end);
-                }
-            }
-        }
-
-        return std::move(transfers);
-    }
-
-    template <class Node>
-    void HashRing<Node>::clear() {
-        nodeRing.clear();
-    }
-
-    template <class Node>
-    const Node* HashRing<Node>::getNode(uint64_t tableId, uint64_t key) {
-        Hash token = getPartitionToken(tableId, key);
-        return getNode(token);
-    }
-
-    template <class Node>
-    const Node* HashRing<Node>::getNode(Hash token) {
-        if (nodeRing.empty()) {
-            return nullptr;
-        } else {
-            auto it = nodeRing.lower_bound(token);
-            if (it == nodeRing.end()) {
-                it = nodeRing.begin();
-            }
-            return &it->second;
-        }
-    }
-
-    template <class Node>
-    const std::map<Hash, Node> HashRing<Node>::getRing() const {
-        return nodeRing;
-    }
-
-    /**
-     * Returns the node that used to own the given token.
-     */
-    template <class Node>
-    const Node* HashRing<Node>::getPreviousNode(Hash token) {
-        if (nodeRing.empty()) {
-            return nullptr;
-        } else {
-            auto owner = nodeRing.lower_bound(token);
-            if (owner == nodeRing.end()) {
-                owner = nodeRing.begin();
-            }
-
-            // We have to use std::next even though we 
-            // are interested in the 'previous' owner. This is because
-            // the next highest node used to own the given token.
-            auto prevOwner = std::next(owner);
-            if (prevOwner == nodeRing.end()) {
-                prevOwner = nodeRing.begin();
-            }
-            return &prevOwner->second;
-        }
-    }
-
-    template <class Node>
-    void HashRing<Node>::getRange(std::vector<Partition>& ranges, Hash hash) const {
-        auto lowerBound = nodeRing.lower_bound(hash);
-
-        if (hash <= nodeRing.begin()->first) {
-            // Case 0: first node encountered in clockwise direction
-            LOG_DEBUG("Case 0");
-            ranges.emplace_back(nodeRing.begin()->second, nodeRing.rbegin()->first + 1, std::numeric_limits<Hash>::max()-1);
-        }
-        
-        if (lowerBound == nodeRing.end()) {
-            // Case 1: lowerBound wraps around
-            LOG_DEBUG("Case 1");
-            auto neighbour = std::prev(lowerBound);
-            crossbow::string owner = nodeRing.begin()->second;
-
-            ranges.emplace_back(owner, neighbour->first + 1, hash);
-        } 
-        
-        if (lowerBound == nodeRing.begin()) {
-            // Case 2: prev(lowerBound) wraps around
-            LOG_DEBUG("Case 2");
-            crossbow::string owner = nodeRing.begin()->second;
-            ranges.emplace_back(owner, (Hash) 0, hash);
-        }
-
-        if (lowerBound != nodeRing.begin() && lowerBound != nodeRing.end()) {
-            // Case 3: none wrap around
-            LOG_DEBUG("Case 3");
-            crossbow::string owner = lowerBound->second;
-            auto neighbour = std::prev(lowerBound);
-
-            ranges.emplace_back(owner, neighbour->first + 1, hash);
-        }    
-    }
-
-    template <class Node>
-    std::vector<Partition> HashRing<Node>::getRanges(const crossbow::string& nodeName) const {
-        std::vector<Partition> ranges;
-        
-        for (uint32_t vnode = 0; vnode < numVirtualNodes; vnode++) {
-            Hash hash = getPartitionToken(nodeName, vnode);
-            getRange(ranges, hash);
-        }
-
-        return std::move(ranges);
-    }
-
-    template <class Node>
-    const bool HashRing<Node>::isActive(const crossbow::string& nodeName) const {
-        Hash nodeToken = getPartitionToken(nodeName, 0);
-        auto search = nodeRing.find(nodeToken);
-
-        return search != nodeRing.end();
-    }
 
 } // namespace store
 } // namespace tell

@@ -30,6 +30,7 @@
 #include <crossbow/string.hpp>
 
 #include <commitmanager/SnapshotDescriptor.hpp>
+#include <commitmanager/HashRing.hpp>
 
 namespace tell {
 namespace commitmanager {
@@ -59,21 +60,6 @@ enum class ResponseType : uint32_t {
     CLUSTER_STATE
 };
 
-using Hash = unsigned __int128;
-
-// Describes a partition [start, end] and the node that currently owns it
-struct Partition {
-    const crossbow::string owner;
-    Hash start;
-    Hash end;
-
-    Partition(crossbow::string owner, Hash start, Hash end) :
-                owner(owner),
-                start(start),
-                end(end)
-                {}
-};
-
 struct ClusterMeta {
     // Ranges the recipient is responsible for,
     // or ranges supposed to be transferred.
@@ -84,7 +70,7 @@ struct ClusterState {
     size_t numPeers;
     uint64_t directoryVersion;
     crossbow::string peers;
-    std::set<crossbow::string> bootstrappingPeers;
+    std::unique_ptr<HashRing> hashRing;
     std::unique_ptr<SnapshotDescriptor> snapshot;
 };
 
