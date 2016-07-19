@@ -42,7 +42,7 @@ void StartResponse::processResponse(crossbow::buffer_reader& message) {
     uint32_t bootstrappingPeersSize = message.read<uint32_t>();
     crossbow::string bootstrapInfo = crossbow::string(message.read(bootstrappingPeersSize), bootstrappingPeersSize);
     
-    LOG_INFO("Bootstrapping peers: %1%", bootstrapInfo);
+    LOG_DEBUG("Bootstrapping peers: %1%", bootstrapInfo);
     if (!bootstrapInfo.empty()) {
         size_t i = 0;
         while (true) {
