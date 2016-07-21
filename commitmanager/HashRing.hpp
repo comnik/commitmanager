@@ -93,6 +93,8 @@ namespace commitmanager {
             
             std::vector<Partition> removeNode(const crossbow::string& nodeName);
 
+            void transferOwnership(Hash rangeEnd);
+
             const PartitionMeta* getNode(uint64_t tableId, uint64_t key) const;
             const PartitionMeta* getNode(Hash token) const;
 

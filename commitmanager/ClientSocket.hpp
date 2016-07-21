@@ -129,8 +129,8 @@ public:
                                                           crossbow::string host );
 
     std::shared_ptr<CommitResponse> transferOwnership(  crossbow::infinio::Fiber& fiber,
-                                                        crossbow::string fromHost,
-                                                        crossbow::string toHost );
+                                                        Hash rangeEnd,
+                                                        crossbow::string host );
 };
 
 } // namespace commitmanager

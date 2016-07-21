@@ -254,14 +254,14 @@ void ServerManager::handleUnregisterNode(ServerSocket *con,
 void ServerManager::handleTransferOwnership(ServerSocket *con,
                                             crossbow::infinio::MessageId messageId,
                                             crossbow::buffer_reader &message) {
-    uint32_t fromHostSize = message.read<uint32_t>();
-    crossbow::string fromHost(message.read(fromHostSize), fromHostSize);
+    auto rangeEnd = message.read<Hash>();
 
-    uint32_t toHostSize = message.read<uint32_t>();
-    crossbow::string toHost(message.read(toHostSize), toHostSize);
+    auto hostSize = message.read<uint32_t>();
+    crossbow::string host(message.read(hostSize), hostSize);
 
-    // Now we can mark the new node as active
-    // mDirectory[toHost]->isBootstrapping = false;
+    LOG_INFO("Transferring ownership for host %1%...", host);
+    mNodeRing.transferOwnership(rangeEnd);
+    mDirectoryVersion++;
     
     // Write response
     uint32_t messageLength = sizeof(uint8_t);

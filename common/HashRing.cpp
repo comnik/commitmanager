@@ -127,6 +127,15 @@ namespace commitmanager {
         return std::move(transfers);
     }
 
+    void HashRing::transferOwnership(Hash rangeEnd) {
+        auto search = nodeRing.find(rangeEnd);
+        if (search == nodeRing.end()) {
+            LOG_ERROR("Not a managed partition. Can't transfer ownership.");
+        } else {
+            search->second.isBootstrapping = false;
+        }
+    }
+
     const PartitionMeta* HashRing::getNode(uint64_t tableId, uint64_t key) const {
         Hash token = getPartitionToken(tableId, key);
         return getNode(token);
