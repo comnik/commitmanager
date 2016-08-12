@@ -23,6 +23,7 @@
  */
 #include <commitmanager/HashRing.hpp>
 
+// #include <functional>
 #include <iterator>
 #include <limits>
 
@@ -30,10 +31,13 @@
 namespace tell {
 namespace commitmanager {
 
+    // Alternative hash function, used only for testing
+    // const auto hashFn = std::hash<std::string>();
+
     crossbow::string HashRing::writeHash(Hash hash) {
         Hash tmp = hash;
         char buffer[128];
-        char* d = std::end( buffer );
+        char* d = std::end(buffer);
         
         do {
             --d;
@@ -41,29 +45,16 @@ namespace commitmanager {
             tmp /= 10;
         } while (tmp != 0);
         
-        int len = std::end( buffer ) - d;
+        int len = std::end(buffer) - d;
         return crossbow::string(d, len);
-    }
-
-    /**
-     * Checks wether a partition is contained inside another.
-     */
-    bool HashRing::isSubPartition(Hash parentStart, Hash parentEnd, Hash childStart, Hash childEnd) {
-        return (childStart >= parentStart && childEnd <= parentEnd);
-    }
-
-    /**
-     * Checks wether a token is contained in the given range.
-     */
-    bool HashRing::inPartition(Hash token, Hash rangeStart, Hash rangeEnd) {
-        return (token >= rangeStart && token <= rangeEnd);
     }
 
     Hash HashRing::getPartitionToken(uint64_t tableId, uint64_t key) {
         Hash hash;
         crossbow::string composite_key = crossbow::to_string(tableId) + crossbow::to_string(key);
         MurmurHash3_x64_128(composite_key.data(), composite_key.size(), HashRing::SEED, &hash);
-        
+        // hash = hashFn(composite_key.data());
+            
         return std::move(hash);
     }
 
@@ -71,6 +62,7 @@ namespace commitmanager {
         Hash hash;
         crossbow::string token = crossbow::to_string(vnode) + nodeName;
         MurmurHash3_x64_128(token.data(), token.size(), HashRing::SEED, &hash);
+        // hash = hashFn(token.data());
 
         return std::move(hash);
     }
@@ -86,6 +78,7 @@ namespace commitmanager {
         for (uint32_t vnode = 0; vnode < numVirtualNodes; vnode++) {
             hash = getPartitionToken(nodeName, vnode);
 
+            // We have to remember the previous owner of this range.
             auto prevPartition = getNode(hash);
             if (prevPartition != nullptr) {
                 meta.previousOwner = prevPartition->owner;
@@ -153,12 +146,16 @@ namespace commitmanager {
         }
     }
 
+    // Deprecated
     const std::map<Hash, PartitionMeta>& HashRing::getRing() const {
         return nodeRing;
     }
 
     void HashRing::getRange(std::vector<Partition>& ranges, Hash hash) const {
         auto lowerBound = nodeRing.lower_bound(hash);
+
+        // @TODO These cases can be simplified into the ones presented
+        // in the thesis.
 
         if (hash <= nodeRing.begin()->first) {
             // Case 0: first node encountered in clockwise direction
