@@ -154,9 +154,6 @@ void ServerManager::handleCommitTransaction(ServerSocket* con, crossbow::infinio
     });
 }
 
-/**
- * @brief Updates the node directory with new status information from a node.
- */
 void ServerManager::handleRegisterNode(ServerSocket *con, 
                                        crossbow::infinio::MessageId messageId, 
                                        crossbow::buffer_reader &message) {
@@ -207,9 +204,6 @@ void ServerManager::handleRegisterNode(ServerSocket *con,
     con->writeResponse(messageId, ResponseType::CLUSTER_STATE, messageLength, responseWriter);
 }
 
-/**
- * @brief Updates the node directory with new status information from a node.
- */
 void ServerManager::handleUnregisterNode(ServerSocket *con,
                                          crossbow::infinio::MessageId messageId,
                                          crossbow::buffer_reader &message) {
@@ -248,9 +242,6 @@ void ServerManager::handleUnregisterNode(ServerSocket *con,
     con->writeResponse(messageId, ResponseType::CLUSTER_STATE, messageLength, responseWriter);
 }
 
-/**
- * @brief Registers a successful key-transfer in the commit-managers hash-ring.
- */
 void ServerManager::handleTransferOwnership(ServerSocket *con,
                                             crossbow::infinio::MessageId messageId,
                                             crossbow::buffer_reader &message) {

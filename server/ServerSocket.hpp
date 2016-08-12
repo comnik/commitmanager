@@ -82,10 +82,17 @@ private:
 
     void handleStartTransaction(ServerSocket* con, crossbow::infinio::MessageId messageId, crossbow::buffer_reader& message);
     void handleCommitTransaction(ServerSocket* con, crossbow::infinio::MessageId messageId, crossbow::buffer_reader& message);
+    
+    /** Handles node additions. */
     void handleRegisterNode(ServerSocket *con, crossbow::infinio::MessageId messageId, crossbow::buffer_reader &message);
+    
+    /** Handles node removals. */
     void handleUnregisterNode(ServerSocket *con, crossbow::infinio::MessageId messageId, crossbow::buffer_reader &message);
+    
+    /** Marks a successful key-transfer in the hash ring. */
     void handleTransferOwnership(ServerSocket *con, crossbow::infinio::MessageId messageId, crossbow::buffer_reader &message);
 
+    // Helper method returning all hosts matching a given tag
     std::vector<crossbow::string> getMatchingHosts(crossbow::string tag);
 
     std::unique_ptr<crossbow::infinio::InfinibandProcessor> mProcessor;
@@ -94,8 +101,13 @@ private:
 
     CommitManager mCommitManager;
 
+    // The last transaction id during which a node joined or left the cluster
     uint64_t mDirectoryVersion;
+
+    // A mapping from node ids to node meta-data
     std::unordered_map<crossbow::string, std::unique_ptr<DirectoryEntry>> mDirectory;
+    
+    // The consistent hash ring
     HashRing mNodeRing;
 };
 
