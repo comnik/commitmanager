@@ -22,6 +22,8 @@
  */
 #pragma once
 
+#include <commitmanager/HashRing.hpp>
+
 #include <crossbow/non_copyable.hpp>
 
 #include <cstddef>
@@ -112,6 +114,11 @@ public: // Version
         return (inReadSet(validFrom) && !inReadSet(validTo));
     }
 
+    std::unique_ptr<HashRing> nodeRing;
+    size_t numPeers;
+    uint64_t directoryVersion;
+    crossbow::string peers;
+    
 private:
     friend std::ostream& operator<<(std::ostream& out, const SnapshotDescriptor& rhs);
 

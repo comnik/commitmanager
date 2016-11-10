@@ -70,76 +70,76 @@ int main(int argc, const char** argv) {
     ClientSocket client(service.createSocket(*processor));
     client.connect(crossbow::infinio::Endpoint(crossbow::infinio::Endpoint::ipv4(), commitManagerHost));
 
-    processor->executeFiber([&client] (crossbow::infinio::Fiber& fiber) {
-        crossbow::string token = "somenode:8080";
-        crossbow::string tag = "STORAGE";
+    // processor->executeFiber([&client] (crossbow::infinio::Fiber& fiber) {
+    //     crossbow::string token = "somenode:8080";
+    //     crossbow::string tag = "STORAGE";
 
-        LOG_INFO("Starting transaction");
-        auto txResp = client.startTransaction(fiber, false);
-        if (!txResp->waitForResult()) {
-            auto& ec = txResp->error();
-            LOG_ERROR("Error while starting transaction [error = %1% %2%]", ec, ec.message());
-            return;
-        }
-        auto clusterState = txResp->get();
-        LOG_INFO("Started transaction [snapshot = %1%]", *clusterState->snapshot);
+    //     LOG_INFO("Starting transaction");
+    //     auto txResp = client.startTransaction(fiber, false);
+    //     if (!txResp->waitForResult()) {
+    //         auto& ec = txResp->error();
+    //         LOG_ERROR("Error while starting transaction [error = %1% %2%]", ec, ec.message());
+    //         return;
+    //     }
+    //     auto snapshot = txResp->get();
+    //     LOG_INFO("Started transaction [snapshot = %1%]", *snapshot);
 
-        LOG_INFO("Registering with the node directory");
-        auto registerResp = client.registerNode(fiber, *clusterState->snapshot, token, tag);
-        if (!registerResp->waitForResult()) {
-            auto& ec = registerResp->error();
-            LOG_ERROR("Error while receiving cluster information [error = %1% %2%]", ec, ec.message());
-            return;
-        }
-        auto clusterMeta = registerResp->get();
+    //     LOG_INFO("Registering with the node directory");
+    //     auto registerResp = client.registerNode(fiber, *snapshot, token, tag);
+    //     if (!registerResp->waitForResult()) {
+    //         auto& ec = registerResp->error();
+    //         LOG_ERROR("Error while receiving cluster information [error = %1% %2%]", ec, ec.message());
+    //         return;
+    //     }
+    //     auto clusterMeta = registerResp->get();
         
-        LOG_INFO("Responsible for ranges:");
-        for (const auto& range : clusterMeta->ranges) {
-            LOG_INFO("\t[%1%, %2%] owned by %3%", HashRing::writeHash(range.start), HashRing::writeHash(range.end), range.owner);
-        }
+    //     LOG_INFO("Responsible for ranges:");
+    //     for (const auto& range : clusterMeta->ranges) {
+    //         LOG_INFO("\t[%1%, %2%] owned by %3%", HashRing::writeHash(range.start), HashRing::writeHash(range.end), range.owner);
+    //     }
 
-        LOG_INFO("Committing transaction");
-        auto commitResp = client.commitTransaction(fiber, clusterState->snapshot->version());
-        if (!commitResp->waitForResult()) {
-            auto& ec = commitResp->error();
-            LOG_ERROR("Error while committing transaction [error = %1% %2%]", ec, ec.message());
-            return;
-        }
-        LOG_INFO("Committed transaction [succeeded = %1%]", commitResp->get());
+    //     LOG_INFO("Committing transaction");
+    //     auto commitResp = client.commitTransaction(fiber, snapshot->version());
+    //     if (!commitResp->waitForResult()) {
+    //         auto& ec = commitResp->error();
+    //         LOG_ERROR("Error while committing transaction [error = %1% %2%]", ec, ec.message());
+    //         return;
+    //     }
+    //     LOG_INFO("Committed transaction [succeeded = %1%]", commitResp->get());
 
-        LOG_INFO("Starting transaction");
-        txResp = client.startTransaction(fiber, false);
-        if (!txResp->waitForResult()) {
-            auto& ec = txResp->error();
-            LOG_ERROR("Error while starting transaction [error = %1% %2%]", ec, ec.message());
-            return;
-        }
-        clusterState = txResp->get();
-        LOG_INFO("Started transaction [snapshot = %1%]", *clusterState->snapshot);
+    //     LOG_INFO("Starting transaction");
+    //     txResp = client.startTransaction(fiber, false);
+    //     if (!txResp->waitForResult()) {
+    //         auto& ec = txResp->error();
+    //         LOG_ERROR("Error while starting transaction [error = %1% %2%]", ec, ec.message());
+    //         return;
+    //     }
+    //     snapshot = txResp->get();
+    //     LOG_INFO("Started transaction [snapshot = %1%]", *snapshot);
 
-        LOG_INFO("Unregistering with the node directory");
-        auto unregisterResp = client.unregisterNode(fiber, *clusterState->snapshot, token);
-        if (!unregisterResp->waitForResult()) {
-            auto& ec = unregisterResp->error();
-            LOG_ERROR("Error while reading cluster information [error = %1% %2%]", ec, ec.message());
-            return;
-        }
-        clusterMeta = unregisterResp->get();
+    //     LOG_INFO("Unregistering with the node directory");
+    //     auto unregisterResp = client.unregisterNode(fiber, *snapshot, token);
+    //     if (!unregisterResp->waitForResult()) {
+    //         auto& ec = unregisterResp->error();
+    //         LOG_ERROR("Error while reading cluster information [error = %1% %2%]", ec, ec.message());
+    //         return;
+    //     }
+    //     clusterMeta = unregisterResp->get();
         
-        LOG_INFO("Giving up ranges:");
-        for (const auto& range : clusterMeta->ranges) {
-            LOG_INFO("\t[%1%, %2%] -> %3%", HashRing::writeHash(range.start), HashRing::writeHash(range.end), range.owner);
-        }
+    //     LOG_INFO("Giving up ranges:");
+    //     for (const auto& range : clusterMeta->ranges) {
+    //         LOG_INFO("\t[%1%, %2%] -> %3%", HashRing::writeHash(range.start), HashRing::writeHash(range.end), range.owner);
+    //     }
 
-        LOG_INFO("Committing transaction");
-        commitResp = client.commitTransaction(fiber, clusterState->snapshot->version());
-        if (!commitResp->waitForResult()) {
-            auto& ec = commitResp->error();
-            LOG_ERROR("Error while committing transaction [error = %1% %2%]", ec, ec.message());
-            return;
-        }
-        LOG_INFO("Committed transaction [succeeded = %1%]", commitResp->get());
-    });
+    //     LOG_INFO("Committing transaction");
+    //     commitResp = client.commitTransaction(fiber, snapshot->version());
+    //     if (!commitResp->waitForResult()) {
+    //         auto& ec = commitResp->error();
+    //         LOG_ERROR("Error while committing transaction [error = %1% %2%]", ec, ec.message());
+    //         return;
+    //     }
+    //     LOG_INFO("Committed transaction [succeeded = %1%]", commitResp->get());
+    // });
 
     service.run();
 

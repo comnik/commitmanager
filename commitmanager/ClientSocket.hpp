@@ -40,8 +40,8 @@ namespace commitmanager {
  * @brief Response for a Start-Transaction request
  */
 class StartResponse final
-        : public crossbow::infinio::RpcResponseResult<StartResponse, std::unique_ptr<ClusterState>> {
-    using Base = crossbow::infinio::RpcResponseResult<StartResponse, std::unique_ptr<ClusterState>>;
+        : public crossbow::infinio::RpcResponseResult<StartResponse, std::unique_ptr<SnapshotDescriptor>> {
+    using Base = crossbow::infinio::RpcResponseResult<StartResponse, std::unique_ptr<SnapshotDescriptor>>;
 
 public:
     using Base::Base;

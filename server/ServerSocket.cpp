@@ -128,6 +128,8 @@ void ServerManager::handleStartTransaction(ServerSocket* con,
         [this, nodeInfo] (crossbow::buffer_writer& message, std::error_code& /* ec */) {
             mCommitManager.serializeSnapshot(message);
 
+            // @TODO Integrate into SnapshotDescriptor::serialize
+            
             // Write most recent directory version
             message.write<uint64_t>(mDirectoryVersion);
 

@@ -21,7 +21,7 @@
  *     Lucas Braun <braunl@inf.ethz.ch>
  */
 #include <commitmanager/SnapshotDescriptor.hpp>
-
+#include <commitmanager/HashRing.hpp>
 #include <commitmanager/Descriptor.hpp>
 
 #include <crossbow/byte_buffer.hpp>
@@ -83,11 +83,17 @@ std::unique_ptr<SnapshotDescriptor> SnapshotDescriptor::deserialize(crossbow::bu
     }
     auto descriptor = reader.read(descLen);
 
-    std::unique_ptr<SnapshotDescriptor> snapshot(new (descLen) SnapshotDescriptor(lowestActiveVersion, baseVersion,
-            version));
+    std::unique_ptr<SnapshotDescriptor> snapshot(new (descLen) SnapshotDescriptor(lowestActiveVersion, baseVersion, version));
     if (snapshot) {
         memcpy(snapshot->data(), descriptor, descLen);
     }
+
+    // snapshot->directoryVersion = reader.read<uint64_t>();
+    // snapshot->numPeers = 0; // will be set later when parsing the peers string
+    // uint32_t peersSize = reader.read<uint32_t>();
+    // snapshot->peers = crossbow::string(reader.read(peersSize), peersSize);
+    // snapshot->nodeRing = std::move(HashRing::deserialize(reader));
+
     return snapshot;
 }
 

@@ -66,13 +66,5 @@ struct ClusterMeta {
     std::vector<Partition> ranges;
 };
 
-struct ClusterState {
-    size_t numPeers;
-    uint64_t directoryVersion;
-    crossbow::string peers;
-    std::unique_ptr<HashRing> hashRing;
-    std::unique_ptr<SnapshotDescriptor> snapshot;
-};
-
 } // namespace commitmanager
 } // namespace tell
