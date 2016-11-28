@@ -88,13 +88,15 @@ std::unique_ptr<SnapshotDescriptor> SnapshotDescriptor::deserialize(crossbow::bu
         memcpy(snapshot->data(), descriptor, descLen);
     }
 
-    // snapshot->directoryVersion = reader.read<uint64_t>();
-    // snapshot->numPeers = 0; // will be set later when parsing the peers string
-    // uint32_t peersSize = reader.read<uint32_t>();
-    // snapshot->peers = crossbow::string(reader.read(peersSize), peersSize);
-    // snapshot->nodeRing = std::move(HashRing::deserialize(reader));
-
     return snapshot;
+}
+
+void SnapshotDescriptor::readNodeRing(crossbow::buffer_reader& reader) {
+    directoryVersion = reader.read<uint64_t>();
+    numPeers = 0; // will be set later when parsing the peers string
+    uint32_t peersSize = reader.read<uint32_t>();
+    peers = crossbow::string(reader.read(peersSize), peersSize);
+    nodeRing = std::move(HashRing::deserialize(reader));
 }
 
 void SnapshotDescriptor::serialize(crossbow::buffer_writer& writer) const {

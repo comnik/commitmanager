@@ -31,7 +31,10 @@ namespace tell {
 namespace commitmanager {
 
 void StartResponse::processResponse(crossbow::buffer_reader& message) {
-    setResult(std::move(SnapshotDescriptor::deserialize(message)));
+    auto snapshot = SnapshotDescriptor::deserialize(message);
+    snapshot->readNodeRing(message);
+
+    setResult(std::move(snapshot));
 }
 
 void CommitResponse::processResponse(crossbow::buffer_reader& message) {

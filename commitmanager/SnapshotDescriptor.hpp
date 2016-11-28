@@ -70,6 +70,8 @@ public: // Serialization
         return (((lastVersion - 1) / BITS_PER_BLOCK) - (baseVersion / BITS_PER_BLOCK) + 1) * sizeof(BlockType);
     }
 
+    void readNodeRing(crossbow::buffer_reader& reader);
+
     size_t serializedLength() const {
         return (3 * sizeof(uint64_t)) + descriptorLength(mBaseVersion, mVersion);
     }
